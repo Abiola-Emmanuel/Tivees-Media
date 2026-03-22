@@ -158,6 +158,7 @@ const Main = () => {
             src={'/hero2.png'}
             fill
             alt='Hero Image'
+            loading='eager'
             className='absolute w-full h-full object-cover'
           />
         </div>

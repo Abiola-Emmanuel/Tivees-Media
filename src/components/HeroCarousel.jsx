@@ -11,25 +11,13 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import 'swiper/css/effect-fade';
 import Navbar from '@/components/Navbar';
+import { useRouter } from 'next/navigation';
+import { movies } from '@/data/movies';
 
 function HeroCarousel() {
-  const slides = [
-    {
-      title: "AVENGERS: ENDGAME",
-      bg: "/mv-hero1.webp",
-      desc: "With the help of remaining allies, the Avengers must assemble once more in order to undo Thanos's actions and undo the chaos to the universe, no matter",
-    },
-    {
-      title: "Whistle",
-      bg: "/mv-hero2.webp",
-      desc: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the ",
-    },
-    {
-      title: "Wuthering Heights",
-      bg: "/mv-hero3.webp",
-      desc: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
-    },
-  ];
+
+  const heroMovies = movies.filter((movie) => movie.featured);
+  const router = useRouter();
 
   const textVariants = {
     hidden: { opacity: 0, y: 30 },
@@ -71,13 +59,13 @@ function HeroCarousel() {
         fadeEffect={{ crossFade: true }}
         className="h-full w-full"
       >
-        {slides.map((slide, idx) => (
+        {heroMovies.map((movie, idx) => (
           <SwiperSlide key={idx}>
             <div className="relative w-full h-full">
               {/* Background Image */}
               <Image
-                src={slide.bg}
-                alt={slide.title}
+                src={movie.backdrop}
+                alt={movie.title}
                 fill
                 priority={idx === 0}
                 className="object-cover brightness-75"
@@ -100,7 +88,7 @@ function HeroCarousel() {
                     variants={textVariants}
                     className="text-white text-3xl sm:text-4xl md:text-2xl  xl:text-7xl font-semibold mb-3 sm:mb-4 leading-[1.2]"
                   >
-                    {slide.title}
+                    {movie.title}
                   </motion.h1>
                 </div>
 
@@ -109,12 +97,14 @@ function HeroCarousel() {
                     variants={textVariants}
                     className="text-neutral-400 text-sm sm:text-lg md:text-md font-normal hidden md:flex mb-3 sm:mb-4 leading-[1.2]"
                   >
-                    {slide.desc}
+                    {movie.description}
                   </motion.p>
                 </div>
 
                 <div className='flex items-center gap-3'>
-                  <button className='text-white bg-[#E50000] py-2 sm:py-2.5 md:py-2 px-5 sm:px-6 md:px-8 rounded-lg text-sm sm:text-base md:text-lg hover:bg-red-700 transition-colors flex items-center gap-2 bg-'>
+                  <button
+                    onClick={() => router.push(`/movies/${movie.id}`)}
+                    className='text-white bg-[#E50000] py-2 sm:py-2.5 md:py-2 px-5 sm:px-6 md:px-8 rounded-lg text-sm sm:text-base md:text-lg hover:bg-red-700 transition-colors flex items-center gap-2 bg-'>
                     <FaPlay />
                     Play Now
                   </button>

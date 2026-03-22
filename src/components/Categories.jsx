@@ -4,14 +4,16 @@ import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import { motion } from 'framer-motion';
 import { useRef } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
-// Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import { FaArrowRight } from 'react-icons/fa6';
 
 const CategoriesSection = () => {
+  const router = useRouter();
+
   const swiperRef = useRef(null);
 
   const categories = [
@@ -21,7 +23,8 @@ const CategoriesSection = () => {
       image2: 'action-2.png',
       image3: 'action-3.png',
       image4: 'action-4.png',
-      description: "High-octane thrill rides"
+      description: "High-octane thrill rides",
+      route: '/action'
     },
     {
       name: "Adventure",
@@ -29,32 +32,36 @@ const CategoriesSection = () => {
       image2: 'adventure2.png',
       image3: 'adventure3.png',
       image4: 'adventure4.png',
-      description: "Epic journeys and quests"
+      description: "Epic journeys and quests",
+      route: '/adventure'
     },
-    {
-      name: "Comedy",
-      image1: 'comedy-1.png',
-      image2: 'comedy-2.png',
-      image3: 'comedy-3.png',
-      image4: 'comedy-4.png',
-      description: "Laughter guaranteed"
-    },
+    // {
+    //   name: "Comedy",
+    //   image1: 'comedy-1.png',
+    //   image2: 'comedy-2.png',
+    //   image3: 'comedy-3.png',
+    //   image4: 'comedy-4.png',
+    //   description: "Laughter guaranteed",
+    //   route: '/comedy'
+    // },
     {
       name: "Drama",
       image1: 'drama-1.png',
       image2: 'drama-2.png',
       image3: 'drama-3.png',
       image4: 'drama-4.png',
-      description: "Emotional storytelling"
+      description: "Emotional storytelling",
+      route: '/drama'
     },
-    {
-      name: "Horror",
-      image1: 'horror-1.png',
-      image2: 'horror-2.png',
-      image3: 'horror-3.png',
-      image4: 'horror-4.png',
-      description: "Fear and suspense"
-    },
+    // {
+    //   name: "Horror",
+    //   image1: 'horror-1.png',
+    //   image2: 'horror-2.png',
+    //   image3: 'horror-3.png',
+    //   image4: 'horror-4.png',
+    //   description: "Fear and suspense",
+    //   route: '/horror'
+    // },
     // {
     //   name: "Sci-Fi",
     //   image1: 'scifi1.png',
@@ -173,6 +180,7 @@ const CategoriesSection = () => {
                     transition: { duration: 0.2 }
                   }}
                   className="flex group cursor-pointer"
+                  onClick={() => router.push(category.route)}
                 >
                   <div className={`
                     relative overflow-hidden rounded-2xl

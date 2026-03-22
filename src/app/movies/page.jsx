@@ -5,14 +5,22 @@ import Footer from '@/components/Footer'
 import FreeTrial from '@/components/FreeTrial'
 import HeroCarousel from '@/components/HeroCarousel'
 import { motion } from 'framer-motion'
-import Image from 'next/image'
-
+import { movies } from '@/data/movies'
+import MovieRow from '@/components/MovieRow'
 const Movies = () => {
+
+  const trendingMovies = movies.filter((m) => m.trending);
+
+  const top10Movies = movies.filter((m) => m.top10);
+
+  const newReleases = movies.filter((m) => m.newRelease);
+
+  const mustWatch = movies.filter((m) => m.mustWatch);
+
   return (
     <>
       <HeroCarousel />
 
-      {/* movies in different categories */}
 
       <div className='relative w-[90%]  mx-auto my-30 '>
 
@@ -23,30 +31,10 @@ const Movies = () => {
           <CategoriesSection />
         </div>
 
-        <div className='py-8'>
-          <h2 className='text-white text-2xl font-semibold md:ml-8'>Popular Top 10 In Genres</h2>
-
-          <CategoriesSection />
-        </div>
-
-        <div className='py-8'>
-          <h2 className='text-white text-2xl font-semibold md:ml-8'>Trending Now</h2>
-
-          <CategoriesSection />
-        </div>
-
-        <div className='py-8'>
-          <h2 className='text-white text-2xl font-semibold md:ml-8'>New Releases</h2>
-
-          <CategoriesSection />
-        </div>
-
-        <div className='py-8'>
-          <h2 className='text-white text-2xl font-semibold md:ml-8'>Must-Watch Movies</h2>
-
-          <CategoriesSection />
-        </div>
-
+        <MovieRow title="Trending Now" movies={trendingMovies.slice(0, 5)} />
+        <MovieRow title="Top 10 In Genres" movies={top10Movies.slice(0, 5)} />
+        <MovieRow title="New Releases" movies={newReleases.slice(0, 5)} />
+        <MovieRow title="Must-Watch Movies" movies={mustWatch.slice(0, 5)} />
       </div>
 
       <FreeTrial />
