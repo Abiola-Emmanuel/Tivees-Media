@@ -83,7 +83,9 @@ export default function MoviePage() {
               </p>
 
               <div className="flex flex-wrap items-center gap-3">
-                <button className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg flex items-center gap-2">
+                <button
+                  onClick={() => router.push('/player?movieId=' + movie.id)}
+                  className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg flex items-center gap-2">
                   <FaPlay />
                   Play Now
                 </button>
