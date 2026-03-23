@@ -1,6 +1,6 @@
 "use client"
 
-import { useSearchParams } from "next/navigation"
+import { useParams } from "next/navigation"
 import { movies } from "@/data/movies";
 import Image from "next/image";
 import FreeTrial from "@/components/FreeTrial";
@@ -12,19 +12,15 @@ import Navbar from "@/components/Navbar";
 import { useRouter } from "next/navigation";
 
 const WatchParty = () => {
-  const searchParams = useSearchParams();
-  const movieId = searchParams.get("movieId");
+  const params = useParams();
   const router = useRouter();
   const [partyName, setPartyName] = useState("");
   const [isCopied, setIsCopied] = useState(false);
 
-  const movie = movies.find((m) => m.id === movieId);
+  const movie = movies.find((m) => m.id === params.id);
 
   const handleCopyLink = () => {
-    const link = `${window.location.origin}/watch-party?movieId=${movieId}&party=${partyName || "watch-party"}`;
-    navigator.clipboard.writeText(link);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+    alert('Copied')
   };
 
   const containerVariants = {

@@ -90,7 +90,7 @@ export default function MoviePage() {
                   Play Now
                 </button>
                 <button
-                  onClick={() => router.push(`/watchparty?movieId=${movie.id}`)}
+                  onClick={() => router.push(`/watchparty/${movie.id}`)}
                   className="bg-white text-black hover:bg-white/80 px-6 py-3 rounded-lg flex items-center gap-2">
                   <MdAirplay />
                   Create Watch Party
