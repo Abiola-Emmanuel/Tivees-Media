@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { MdClose, MdPlayArrow, MdPause, MdShare, MdPerson, MdMessage } from 'react-icons/md';
 import AttendeesPanel from './AttendesPanel';
+import { useRouter } from 'next/navigation';
 import CommentsPanel from './CommentsPanel';
 import { movies } from '@/data/movies';
+import Navbar from './Navbar';
 
 const TiveesPlayer = ({ movie }) => {
+  const router = useRouter()
 
   useEffect(() => {
     console.log(movie);
@@ -15,6 +18,14 @@ const TiveesPlayer = ({ movie }) => {
 
   return (
     <div className="relative w-full h-screen bg-black flex overflow-hidden font-sans text-white">
+
+
+      <button
+        onClick={() => router.back()}
+        className="absolute top-20 left-6 z-20  cursor-pointer transition"
+      >
+        ← Back
+      </button>
 
       <div className="relative flex-1 flex flex-col justify-between p-6">
         <div className="flex justify-between items-start z-10">
