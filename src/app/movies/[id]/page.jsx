@@ -87,7 +87,9 @@ export default function MoviePage() {
                   <FaPlay />
                   Play Now
                 </button>
-                <button className="bg-white text-black hover:bg-white/80 px-6 py-3 rounded-lg flex items-center gap-2">
+                <button
+                  onClick={() => router.push(`/watchparty?movieId=${movie.id}`)}
+                  className="bg-white text-black hover:bg-white/80 px-6 py-3 rounded-lg flex items-center gap-2">
                   <MdAirplay />
                   Create Watch Party
                 </button>

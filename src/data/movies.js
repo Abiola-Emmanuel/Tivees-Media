@@ -191,7 +191,7 @@ export const movies = [
     id: "spider-man-no-way-home",
     title: "Spider-Man: No Way Home",
     genre: "action",
-    backdrop: "/mr-bg.webp",
+    backdrop: "/spiderman-bg.webp",
     poster: "/spiderman.webp",
     description: "Spider-Man faces multiverse chaos.",
     year: 2021,
