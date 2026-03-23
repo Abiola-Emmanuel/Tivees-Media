@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MdClose, MdPlayArrow, MdPause, MdShare, MdPerson, MdMessage } from 'react-icons/md';
 import AttendeesPanel from './AttendesPanel';
 import CommentsPanel from './CommentsPanel';
 import { movies } from '@/data/movies';
 
-const TiveesPlayer = ({ movieId }) => {
+const TiveesPlayer = ({ movie }) => {
 
-  const movie = movies.find(m => m.id === movieId);
+  useEffect(() => {
+    console.log(movie);
+
+  })
 
   const [activePanel, setActivePanel] = useState(null);
 
