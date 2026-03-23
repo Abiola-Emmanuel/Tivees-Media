@@ -5,8 +5,10 @@ import Navbar from "@/components/Navbar";
 import { FaPlay, FaCircleInfo, FaPlus } from "react-icons/fa6";
 import { motion } from "framer-motion";
 import { movies } from "@/data/movies";
+import FreeTrial from "@/components/FreeTrial";
+import Footer from "@/components/Footer";
 
-export default function ActionCategoryPage() {
+export default function DramaCategoryPage() {
   const dramaMovies = movies.filter((movie) => movie.genre === "drama");
 
   return (
@@ -67,6 +69,10 @@ export default function ActionCategoryPage() {
           <MovieRow title="Classic Dramas" movies={dramaMovies} />
         </div>
       </div>
+
+      <FreeTrial />
+
+      <Footer />
     </main>
   );
 }

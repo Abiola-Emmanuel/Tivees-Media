@@ -5,8 +5,10 @@ import Navbar from "@/components/Navbar";
 import { FaPlay, FaCircleInfo, FaPlus } from "react-icons/fa6";
 import { motion } from "framer-motion";
 import { movies } from "@/data/movies";
+import FreeTrial from "@/components/FreeTrial";
+import Footer from "@/components/Footer";
 
-export default function ActionCategoryPage() {
+export default function AdventureCategoryPage() {
   const adventureMovies = movies.filter((movie) => movie.genre === "adventure");
 
   return (
@@ -67,6 +69,9 @@ export default function ActionCategoryPage() {
           <MovieRow title="Fantasy Adventures" movies={adventureMovies} />
         </div>
       </div>
+      <FreeTrial />
+
+      <Footer />
     </main>
   );
 }

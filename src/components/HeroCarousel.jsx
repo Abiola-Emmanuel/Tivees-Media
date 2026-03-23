@@ -20,7 +20,7 @@ function HeroCarousel() {
   const router = useRouter();
 
   const textVariants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { y: 30 },
     visible: {
       opacity: 1,
       y: 0,
@@ -29,7 +29,7 @@ function HeroCarousel() {
   };
 
   const buttonVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
+    hidden: { scale: 0.9 },
     visible: {
       opacity: 1,
       scale: 1,

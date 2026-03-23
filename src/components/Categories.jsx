@@ -101,7 +101,7 @@ const CategoriesSection = () => {
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { y: 30 },
     visible: {
       opacity: 1,
       y: 0,
@@ -113,12 +113,11 @@ const CategoriesSection = () => {
     <motion.section
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={{ once: false, amount: 0.2 }}
       variants={containerVariants}
       className="  overflow-hidden"
     >
       <div className="w-full mx-auto px-4 sm:px-6 md:px-8 py-5">
-        {/* Custom Navigation Controls at Top Right */}
         <div className="flex  justify-end gap-3 items-center mb-6">
           <button
             onClick={() => swiperRef.current?.slidePrev()}

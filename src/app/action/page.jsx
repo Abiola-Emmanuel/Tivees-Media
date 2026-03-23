@@ -5,9 +5,14 @@ import Navbar from "@/components/Navbar";
 import { FaPlay, FaCircleInfo, FaPlus } from "react-icons/fa6";
 import { motion } from "framer-motion";
 import { movies } from "@/data/movies";
+import { useRouter } from "next/navigation";
+import FreeTrial from "@/components/FreeTrial";
+import Footer from "@/components/Footer";
 
 export default function ActionCategoryPage() {
   const actionMovies = movies.filter((movie) => movie.genre === "action");
+
+  const router = useRouter();
 
   return (
     <main className="min-h-screen bg-[#141414]">
@@ -55,9 +60,12 @@ export default function ActionCategoryPage() {
           <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-8 flex flex-col md:flex-row justify-between items-center gap-6">
             <div>
               <h3 className="text-2xl font-bold text-white">Not finding what you want?</h3>
-              <p className="text-gray-400">Request an action movie and we'll add it to the library.</p>
+              <p
+                className="text-gray-400">Request an action movie and we'll add it to the library.</p>
             </div>
-            <button className="bg-[#e50000] text-white px-8 py-3 rounded-xl font-bold hover:scale-105 transition-transform">
+            <button
+              onClick={() => router.push('/support')}
+              className="bg-[#e50000] text-white px-8 py-3 rounded-xl font-bold hover:scale-105 transition-transform">
               Request Movie
             </button>
           </div>
@@ -67,6 +75,10 @@ export default function ActionCategoryPage() {
           <MovieRow title="Sci-Fi Action" movies={actionMovies} />
         </div>
       </div>
+
+      <FreeTrial />
+
+      <Footer />
     </main>
   );
 }

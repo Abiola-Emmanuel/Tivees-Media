@@ -137,7 +137,9 @@ const Main = () => {
         <Navbar />
 
         <div className=' absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-5 flex items-center justify-center'>
-          <FaPlay className='text-[#f5032f66] text-6xl sm:text-7xl md:text-8xl cursor-pointer hover:text-[#fe2d5366] transition-colors' />
+          <FaPlay
+            onClick={() => router.push('/movies')}
+            className='text-[#f5032f66] text-6xl sm:text-7xl md:text-8xl cursor-pointer hover:text-[#fe2d5366] transition-colors' />
         </div>
 
         <div className='absolute top-0 left-0 right-0 h-1/2 bg-[#1414148d] z-2'></div>

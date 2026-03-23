@@ -92,10 +92,6 @@ const SignIn = () => {
 
         {/* sign up modal */}
         <motion.form
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
           className='bg-black/80 z-4 rounded-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
     w-[90%] sm:w-96 md:w-104 lg:w-120
     pt-8 sm:pt-10 md:pt-12 pb-8 sm:pb-10 md:pb-12 
@@ -105,25 +101,16 @@ const SignIn = () => {
         >
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
             className='w-full sm:w-[320px] md:w-[336px] lg:w-[352px] mx-auto'
           >
 
             <motion.h1
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
               className='font-bold text-white text-2xl sm:text-3xl md:text-[31.6px]'
             >
               Sign In
             </motion.h1>
 
             <motion.input
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.25 }}
               type="email"
               placeholder='Email '
               className='w-full h-10 sm:h-11 md:h-12 bg-[#33333353] text-white mt-4 sm:mt-5 md:mt-6 border-1 rounded-sm pl-4 text-sm sm:text-base'
@@ -132,9 +119,6 @@ const SignIn = () => {
             />
 
             <motion.input
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.3 }}
               type="password"
               placeholder='Password'
               className='w-full h-10 sm:h-11 md:h-12 bg-[#33333353] text-white mt-4 sm:mt-5 md:mt-6 border-1 rounded-sm pl-4 text-sm sm:text-base'
@@ -143,9 +127,6 @@ const SignIn = () => {
             />
 
             <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.35 }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className='w-full h-10 sm:h-11 md:h-12 bg-[#E50000] text-white mt-4 sm:mt-5 md:mt-6 rounded-sm text-sm sm:text-base md:text-lg font-medium cursor-pointer'
@@ -155,8 +136,6 @@ const SignIn = () => {
             </motion.button>
 
             <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
               transition={{ duration: 0.3, delay: 0.4 }}
               className='text-neutral-500 text-center text-sm sm:text-base md:text-lg mt-4'
             >
@@ -164,9 +143,6 @@ const SignIn = () => {
             </motion.p>
 
             <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.45 }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className='w-full h-10 sm:h-11 md:h-12 bg-[#80808066] text-white mt-4 sm:mt-5 md:mt-6 rounded-sm text-sm sm:text-base md:text-lg'
@@ -175,9 +151,6 @@ const SignIn = () => {
             </motion.button>
 
             <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, delay: 0.5 }}
               whileHover={{ scale: 1.05 }}
               className='text-white text-center text-sm sm:text-base md:text-lg mt-4 cursor-pointer hover:underline'
             >
@@ -185,9 +158,6 @@ const SignIn = () => {
             </motion.p>
 
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, delay: 0.55 }}
               className='flex items-center gap-2 mt-4'
             >
               <input type="checkbox" className='w-4 h-4' />
@@ -195,9 +165,6 @@ const SignIn = () => {
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, delay: 0.6 }}
               className='flex items-center gap-1 sm:gap-2 mt-4 flex-wrap'
             >
               <p className='text-white text-xs sm:text-sm'>New to TiveesMedia?</p>
@@ -205,18 +172,12 @@ const SignIn = () => {
             </motion.div>
 
             <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, delay: 0.65 }}
               className='text-neutral-500 text-xs sm:text-sm text-left mt-6'
             >
               This page is protected by Google reCAPTCHA to ensure you're not a bot.
             </motion.p>
 
             <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, delay: 0.7 }}
               whileHover={{ scale: 1.02 }}
               className='text-blue-500 text-xs sm:text-sm text-left mt-1 cursor-pointer hover:underline'
             >
