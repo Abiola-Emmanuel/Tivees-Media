@@ -24,7 +24,19 @@ const Movies = () => {
 
       <div className='relative w-[90%]  mx-auto my-30 '>
 
-        <div className='bg-[#E50000] flex items-center justify-center gap-2 text-white py-2 sm:py-2.5 md:py-2 px-5 sm:px-6 md:px-8 rounded-lg text-sm sm:text-base md:text-lg hover:bg-red-700 transition-colors w-20 absolute -top-5 left-10'>Movies</div>
+        <div className='flex gap-3 mb-8'>
+          <input
+            type='text'
+            placeholder='Search movies...'
+            className='flex-1 px-4 py-2 sm:py-2.5 md:py-3 rounded-lg  text-white placeholder-gray-400 border border-neutral-100 focus:outline-none focus:border-[#fff] transition-colors text-sm sm:text-base'
+          />
+          <button className='bg-[#E50000] text-white px-6 sm:px-8 py-2 sm:py-2.5 md:py-3 rounded-lg hover:bg-red-700 transition-colors text-sm sm:text-base font-medium'>
+            Search
+          </button>
+        </div>
+
+
+        <div className='bg-[#E50000] flex items-center justify-center gap-2 text-white py-2 sm:py-2.5 md:py-2 px-5 sm:px-6 md:px-8 rounded-lg text-sm sm:text-base md:text-lg hover:bg-red-700 transition-colors w-20 absolute top-20 left-10'>Movies</div>
 
 
         <div>
