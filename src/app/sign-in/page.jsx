@@ -57,7 +57,7 @@ const SignIn = () => {
 
         <div className='relative bg-black w-full h-[100vh] flex flex-col'>
 
-          <div className='absolute top-0 left-0 right-0 h-1/2 bg-[#141414a9]  z-2'></div
+          <div className='absolute top-0 left-0 right-0 h-1/2 bg-[#141414a9]  z-2'></div>
           <div className='absolute bottom-0 left-0 right-0 h-1/2 bg-[#1414149b]  z-2'></div>
 
           <div className='relative w-full h-40 '>
@@ -279,6 +279,7 @@ const SignIn = () => {
 
         </motion.form>
       </div>
+
 
       <Footer />
     </>
