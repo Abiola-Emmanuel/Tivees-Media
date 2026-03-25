@@ -107,19 +107,19 @@ const MovieRow = ({ title, movies }) => {
             className="categories-swiper"
           >
             {movies.map((movie, index) => (
-              <SwiperSlide key={movie.id}>
+              <SwiperSlide key={movie._id || movie.id}>
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.4, delay: index * 0.05 }}
                   whileHover={{ y: -10 }}
-                  onClick={() => router.push(`/movies/${movie.id}`)}
+                  onClick={() => router.push(`/movies/${movie._id || movie.id}`)}
                   className="cursor-pointer group"
                 >
                   <div className="relative w-full h-80 rounded-xl overflow-hidden">
 
                     <Image
-                      src={movie.poster}
+                      src={movie.posterUrl || movie.poster}
                       alt={movie.title}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-500"

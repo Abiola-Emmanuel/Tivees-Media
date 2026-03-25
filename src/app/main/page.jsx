@@ -202,7 +202,6 @@ const Main = () => {
 
 
       <div className='w-[90%] mx-auto mt-8 sm:mt-10 md:mt-12 lg:mt-16'>
-        {/* Header with Controls */}
         <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:justify-between md:items-end md:ml-6">
           <div className="flex flex-col text-left items-start mb-6 md:mb-0">
             <motion.h2
@@ -225,7 +224,6 @@ const Main = () => {
       </div>
 
 
-      {/* We provide section  */}
       <motion.section
         initial="hidden"
         whileInView="visible"

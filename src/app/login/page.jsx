@@ -7,46 +7,46 @@ import { useState } from 'react'
 import axios from 'axios'
 
 const SignIn = () => {
-  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [number, setNumber] = useState('')
   const [password, setPassword] = useState('')
 
   const router = useRouter()
 
   const url = 'https://tivess-be-89v3.onrender.com/api/v1'
 
-  const handleSignUp = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
 
-    if (!name || !email || !number || !password) {
+    // Validate form fields
+    if (!email || !password) {
       alert('Please fill in all fields')
       return
     }
 
     try {
+      const authToken = localStorage.getItem('authToken')
 
-      const response = await axios.post(`${url}/users/signup`, {
-        name: name,
+      const requestData = {
         email: email,
-        phone: number,
         password: password,
-      })
+      }
 
+      const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {}
+
+      const response = await axios.post(`${url}/users/login`, requestData, { headers })
 
       if (response.data.status === 'SUCCESS' && response.data.token) {
         localStorage.setItem('authToken', response.data.token)
-        localStorage.setItem('user', JSON.stringify(response.data.user))
-
-        alert('Sign up successful!')
-        router.push('/login')
+        alert('Login successful!')
+        router.push('/main')
       } else {
-        alert('Sign up failed: ' + (response.data.message || 'Unknown error'))
+        alert('Login failed: ' + (response.data.message || 'Unknown error'))
       }
     } catch (error) {
-      console.error('Sign up error:', error.response?.data || error.message)
+      console.error('Login error:', error.response?.data || error.message)
+      console.error('Error status:', error.response?.status)
 
-      alert(error.response?.data?.message || 'Sign up failed. Please try again.')
+      alert(error.response?.data?.message || 'Login failed. Please try again.')
     }
   }
 
@@ -124,7 +124,7 @@ const SignIn = () => {
     pt-8 sm:pt-10 md:pt-12 pb-8 sm:pb-10 md:pb-12 
     pl-6 sm:pl-8 md:pl-12 lg:pl-16 
     pr-6 sm:pr-8 md:pr-12 lg:pr-16'
-          onSubmit={handleSignUp}
+          onSubmit={handleLogin}
         >
 
           <motion.div
@@ -134,16 +134,8 @@ const SignIn = () => {
             <motion.h1
               className='font-bold text-white text-2xl sm:text-3xl md:text-[31.6px]'
             >
-              Sign Up
+              Login
             </motion.h1>
-
-            <motion.input
-              type="text"
-              placeholder='Full Name'
-              className='w-full h-10 sm:h-11 md:h-12 bg-[#33333353] text-white mt-4 sm:mt-5 md:mt-6 border-1 rounded-sm pl-4 text-sm sm:text-base'
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
 
             <motion.input
               type="email"
@@ -151,14 +143,6 @@ const SignIn = () => {
               className='w-full h-10 sm:h-11 md:h-12 bg-[#33333353] text-white mt-4 sm:mt-5 md:mt-6 border-1 rounded-sm pl-4 text-sm sm:text-base'
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-            />
-
-            <motion.input
-              type="number"
-              placeholder='Phone Number'
-              className='w-full h-10 sm:h-11 md:h-12 bg-[#33333353] text-white mt-4 sm:mt-5 md:mt-6 border-1 rounded-sm pl-4 text-sm sm:text-base'
-              value={number}
-              onChange={(e) => setNumber(e.target.value)}
             />
 
 
@@ -176,7 +160,7 @@ const SignIn = () => {
               className='w-full h-10 sm:h-11 md:h-12 bg-[#E50000] text-white mt-4 sm:mt-5 md:mt-6 rounded-sm text-sm sm:text-base md:text-lg font-medium cursor-pointer'
               type='submit'
             >
-              Sign In
+              Log In
             </motion.button>
 
             <motion.p

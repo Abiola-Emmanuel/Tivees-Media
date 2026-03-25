@@ -3,26 +3,21 @@ import { MdClose, MdPlayArrow, MdPause, MdShare, MdPerson, MdMessage } from 'rea
 import AttendeesPanel from './AttendesPanel';
 import { useRouter } from 'next/navigation';
 import CommentsPanel from './CommentsPanel';
-import { movies } from '@/data/movies';
-import Navbar from './Navbar';
 
 const TiveesPlayer = ({ movie }) => {
   const router = useRouter()
-
-  useEffect(() => {
-    console.log(movie);
-
-  })
-
+  const [isPlaying, setIsPlaying] = useState(true);
   const [activePanel, setActivePanel] = useState(null);
+  const movieId = movie?._id || movie?.id;
+
+  const iframeUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/${movieId}`;
 
   return (
     <div className="relative w-full h-screen bg-black flex overflow-hidden font-sans text-white">
 
-
       <button
         onClick={() => router.back()}
-        className="absolute top-20 left-6 z-20  cursor-pointer transition"
+        className="absolute top-6 left-6 z-20 cursor-pointer transition text-white hover:opacity-70"
       >
         ← Back
       </button>
@@ -30,8 +25,8 @@ const TiveesPlayer = ({ movie }) => {
       <div className="relative flex-1 flex flex-col justify-between p-6">
         <div className="flex justify-between items-start z-10">
           <div className="invisible" />
-          <h2 className="text-sm font-medium opacity-80 uppercase tracking-widest">
-            {movie.title}
+          <h2 className="text-sm font-medium opacity-80 uppercase tracking-widest text-center">
+            {movie?.title || 'Loading...'}
           </h2>
           <button
             onClick={() => setActivePanel(null)}
@@ -40,10 +35,16 @@ const TiveesPlayer = ({ movie }) => {
           </button>
         </div>
 
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-16 h-16 flex items-center justify-center opacity-80">
-            <MdPause size={48} />
-          </div>
+        {/* Video Player Container */}
+        <div className="absolute inset-0 flex items-center justify-center z-0">
+          <iframe
+            src='https://iframe.videodelivery.net/07e0fe08f283b36add7bd6b03c0c65f7'
+            allowFullScreen
+            frameBorder="0"
+            width="100%"
+            height="100%"
+            className="absolute inset-0"
+          />
         </div>
 
         <div className="z-10 flex flex-col gap-6">
@@ -69,14 +70,14 @@ const TiveesPlayer = ({ movie }) => {
               </button>
             </div>
           </div>
-
+          {/* 
           <div className="flex items-center gap-4">
             <div className="flex-1 h-1.5 bg-white/30 rounded-full relative cursor-pointer group">
               <div className="absolute top-0 left-0 h-full w-[60%] bg-[#e50000] rounded-full" />
               <div className="absolute top-1/2 left-[60%] -translate-y-1/2 w-4 h-4 bg-[#e50000] rounded-full shadow-lg scale-0 group-hover:scale-100 transition-transform" />
             </div>
             <span className="text-xs font-mono opacity-60">0:00</span>
-          </div>
+          </div> */}
         </div>
       </div>
 

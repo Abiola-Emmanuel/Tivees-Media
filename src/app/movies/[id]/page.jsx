@@ -1,26 +1,76 @@
 'use client';
 
-import { movies } from '@/data/movies';
-import { useParams } from 'next/navigation';
+import { useState, useEffect, use } from 'react';
+import axios from 'axios';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { FaPlay, FaPlus, FaVolumeHigh } from 'react-icons/fa6';
+import { FaPlay, FaPlus } from 'react-icons/fa6';
 import { AiOutlineLike } from "react-icons/ai";
 import { MdAirplay } from "react-icons/md";
-import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import FreeTrial from '@/components/FreeTrial';
 import { CiCalendar } from "react-icons/ci";
 import { MdOutlineTranslate } from "react-icons/md";
 import Footer from '@/components/Footer';
 
-export default function MoviePage() {
-  const params = useParams();
+export default function MoviePage({ params }) {
+  const { id } = use(params);
+  console.log('Movie ID from params:', id);
+  const [movie, setMovie] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const router = useRouter();
-  const movie = movies.find((m) => m.id === params.id);
+  const url = process.env.NEXT_PUBLIC_BACKEND_URL;
+  console.log('API URL:', `${url}/api/v1/users/movies/${id}`);
 
-  if (!movie) {
-    return <div className='text-white'>Movie not found</div>
+  useEffect(() => {
+    const fetchMovieDetails = async () => {
+      try {
+        const authToken = localStorage.getItem("authToken");
+        const response = await axios.get(
+          `${url}/api/v1/users/movies/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${authToken}`
+            }
+          }
+        );
+
+        if (response.data.status === "SUCCESS") {
+          setMovie(response.data.movie);
+        }
+      } catch (err) {
+        console.error("Error fetching movie details:", err);
+        setError("Failed to load movie details");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchMovieDetails();
+    }
+  }, [id, url]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Navbar />
+        <p className="text-white">Loading movie details...</p>
+      </div>
+    );
+  }
+
+  if (error || !movie) {
+    return (
+      <div className="min-h-screen bg-black text-white">
+        <Navbar />
+        <div className="flex items-center justify-center h-screen">
+          <p>{error || 'Movie not found'}</p>
+        </div>
+      </div>
+    );
   }
 
   const textVariants = {
@@ -49,7 +99,7 @@ export default function MoviePage() {
         <div className="relative w-full h-screen">
 
           <Image
-            src={movie.backdrop}
+            src={movie.posterUrl}
             alt={movie.title}
             fill
             className="object-cover brightness-50"
@@ -71,26 +121,26 @@ export default function MoviePage() {
               </h1>
 
               <div className="flex gap-4 text-sm text-gray-300 mb-4">
-                <span>{movie.year}</span>
+                <span>{movie.releaseDate}</span>
                 <span>•</span>
-                <span>{movie.duration}</span>
+                <span>{movie.duration} min</span>
                 <span>•</span>
                 <span className="capitalize">{movie.genre}</span>
               </div>
 
-              <p className="text-gray-300 mb-6 max-w-xl">
-                {movie.description}
+              <p className="text-gray-300 mb-6 max-w-xl line-clamp-3">
+                {movie.description.replace(/<[^>]*>/g, '')}
               </p>
 
               <div className="flex flex-wrap items-center gap-3">
                 <button
-                  onClick={() => router.push(`/player-page/${movie.id}`)}
+                  onClick={() => router.push(`/player-page/${movie._id}`)}
                   className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg flex items-center gap-2">
                   <FaPlay />
                   Play Now
                 </button>
                 <button
-                  onClick={() => router.push(`/watchparty/${movie.id}`)}
+                  onClick={() => router.push(`/watchparty/${movie._id}`)}
                   className="bg-white text-black hover:bg-white/80 px-6 py-3 rounded-lg flex items-center gap-2">
                   <MdAirplay />
                   Create Watch Party
@@ -117,46 +167,26 @@ export default function MoviePage() {
           <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6 md:p-10">
             <h3 className="text-gray-400 font-medium mb-4">Description</h3>
             <p className="text-lg leading-relaxed">
-              {movie.description}
+              {movie.description.replace(/<[^>]*>/g, '')}
             </p>
           </div>
 
           <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6 md:p-10">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-gray-400 font-medium">Cast</h3>
+              <h3 className="text-gray-400 font-medium">Information</h3>
             </div>
-            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-              <div className="flex-shrink-0 relative w-24 h-24 rounded-xl overflow-hidden border border-white/5 italic text-[10px] flex items-center justify-center text-gray-500">
-                <Image
-                  src={movie.cast1}
-                  fill
-                  alt="Cast 1"
-                  className="object-cover"
-                />
+            <div className="space-y-4">
+              <div>
+                <p className="text-gray-500 text-sm mb-2">Category</p>
+                <p className="text-white">{movie.category}</p>
               </div>
-              <div className="flex-shrink-0 relative w-24 h-24 rounded-xl overflow-hidden border border-white/5 italic text-[10px] flex items-center justify-center text-gray-500">
-                <Image
-                  src={movie.cast2}
-                  fill
-                  alt="Cast 2"
-                  className="object-cover"
-                />
+              <div>
+                <p className="text-gray-500 text-sm mb-2">Duration</p>
+                <p className="text-white">{movie.duration} minutes</p>
               </div>
-              <div className="flex-shrink-0 relative w-24 h-24 rounded-xl overflow-hidden border border-white/5 italic text-[10px] flex items-center justify-center text-gray-500">
-                <Image
-                  src={movie.cast3}
-                  fill
-                  alt="Cast 3"
-                  className="object-cover"
-                />
-              </div>
-              <div className="flex-shrink-0 relative w-24 h-24 rounded-xl overflow-hidden border border-white/5 italic text-[10px] flex items-center justify-center text-gray-500">
-                <Image
-                  src={movie.cast4}
-                  fill
-                  alt="Cast 4"
-                  className="object-cover"
-                />
+              <div>
+                <p className="text-gray-500 text-sm mb-2">Status</p>
+                <p className="text-white capitalize">{movie.status}</p>
               </div>
             </div>
           </div>
@@ -164,27 +194,15 @@ export default function MoviePage() {
           <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6 md:p-10">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-gray-400 font-medium">Reviews</h3>
-              <button className="bg-[#1a1a1a] border border-white/10 px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-white/5 transition-all text-sm">
+              <button
+                onClick={() => router.push(`/review/${movie._id}`)}
+                className="bg-[#1a1a1a] border border-white/10 px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-white/5 transition-all text-sm">
                 <span>+</span> Add Your Review
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-[#0a0a0a] border border-white/5 p-6 rounded-2xl space-y-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium">Aniket Roy</p>
-                    <p className="text-gray-500 text-xs">From India</p>
-                  </div>
-                  <div className="bg-[#1a1a1a] border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-1">
-                    <span className="text-red-600 text-xs">★★★★☆</span>
-                    <span className="text-xs">4.5</span>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  This movie was recommended to me by a very dear friend who went for the movie by herself. I went to the cinemas to watch but had a houseful board so couldn't watch it.
-                </p>
-              </div>
+            <div className="text-center py-8">
+              <p className="text-gray-400">No reviews yet. Be the first to review this movie!</p>
             </div>
           </div>
         </div>
@@ -194,35 +212,13 @@ export default function MoviePage() {
           <section>
             <p className="text-gray-500 flex items-center gap-2 mb-2 text-sm">
               <CiCalendar /> Released Year</p>
-            <p className="text-xl font-semibold">{movie.year}</p>
+            <p className="text-xl font-semibold">{movie.releaseDate}</p>
           </section>
 
           <section>
             <p className="text-gray-500 flex items-center gap-2 mb-3 text-sm">
-              <MdOutlineTranslate /> Available Language</p>
-            <div className="flex flex-wrap gap-2">
-              <span className="px-4 py-2 bg-[#141414] border border-white/10 rounded-lg text-sm">{movie.language}</span>
-            </div>
-          </section>
-
-          <section>
-            <p className="text-gray-500 flex items-center gap-2 mb-3 text-sm"><span className="opacity-50 italic">★</span> Ratings</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-[#141414] border border-white/10 p-4 rounded-xl">
-                <p className="text-sm font-medium mb-2">IMDb</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-red-600">★★★★☆</span>
-                  <span className="text-sm">4.5</span>
-                </div>
-              </div>
-              <div className="bg-[#141414] border border-white/10 p-4 rounded-xl">
-                <p className="text-sm font-medium mb-2">StreamVibe</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-red-600">★★★★☆</span>
-                  <span className="text-sm">4</span>
-                </div>
-              </div>
-            </div>
+              <MdOutlineTranslate /> Duration</p>
+            <p className="text-xl font-semibold">{movie.duration} min</p>
           </section>
 
           <section>
@@ -232,39 +228,16 @@ export default function MoviePage() {
             </div>
           </section>
 
-          <section className="space-y-6">
-            <div>
-              <p className="text-gray-500 text-sm mb-3">Director</p>
-              <div className="bg-[#141414] border border-white/10 p-3 rounded-xl flex items-center gap-3">
-                <div className="relative w-12 h-12 bg-gray-700 rounded-lg flex-shrink-0 overflow-hidden">
-                  <Image
-                    src={movie.director1}
-                    fill
-                    alt="Director"
-                    className="object-cover"
-                  />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{movie.director1Name}</p>
-                </div>
-              </div>
+          <section>
+            <p className="text-gray-500 flex items-center gap-2 mb-3 text-sm">Category</p>
+            <div className="flex gap-2">
+              <span className="px-4 py-2 bg-[#141414] border border-white/10 rounded-lg text-sm">{movie.category}</span>
             </div>
-            <div>
-              <p className="text-gray-500 text-sm mb-3">Music</p>
-              <div className="bg-[#141414] border border-white/10 p-3 rounded-xl flex items-center gap-3">
-                <div className="relative w-12 h-12 bg-gray-700 rounded-lg flex-shrink-0 overflow-hidden">
-                  <Image
-                    src={movie.director2}
-                    fill
-                    alt="Director"
-                    className="object-cover"
-                  />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{movie.director2Name}</p>
-                </div>
-              </div>
-            </div>
+          </section>
+
+          <section>
+            <p className="text-gray-500 flex items-center gap-2 mb-3 text-sm">Status</p>
+            <p className="text-white capitalize">{movie.status}</p>
           </section>
 
         </div>
