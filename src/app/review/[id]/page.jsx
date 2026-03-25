@@ -31,7 +31,8 @@ const ReviewPage = ({ params }) => {
     const fetchMovieDetails = async () => {
       try {
         const authToken = localStorage.getItem("authToken");
-        const response = await axios.get(
+
+        const movieResponse = await axios.get(
           `${url}/api/v1/users/movies/${id}`,
           {
             headers: {
@@ -40,13 +41,13 @@ const ReviewPage = ({ params }) => {
           }
         );
 
-        if (response.data.status === "SUCCESS") {
-          setMovie(response.data.movie);
+        if (movieResponse.data.status === "SUCCESS") {
+          setMovie(movieResponse.data.movie);
         }
 
         try {
           const reviewsResponse = await axios.get(
-            `${url}/api/v1/users/movies/${id}`,
+            `${url}/api/v1/users/getReviews/${id}`,
             {
               headers: {
                 Authorization: `Bearer ${authToken}`
@@ -54,15 +55,21 @@ const ReviewPage = ({ params }) => {
             }
           );
 
+          console.log("Reviews response:", reviewsResponse.data);
+
           if (reviewsResponse.data.status === "SUCCESS") {
-            setReviews(reviewsResponse.data.reviews);
+            setReviews(reviewsResponse.data.reviews || []);
+          } else {
+            setReviews([]);
           }
         } catch (reviewErr) {
-          console.log("Reviews endpoint not available");
+          console.error("Reviews fetch error:", reviewErr.message);
+          console.error("Error status:", reviewErr.response?.status);
+          console.error("Error data:", reviewErr.response?.data);
           setReviews([]);
         }
       } catch (err) {
-        console.error("Error fetching details:", err);
+        console.error("Error fetching movie details:", err);
         setError("Failed to load movie details");
       } finally {
         setLoading(false);
@@ -405,14 +412,14 @@ const ReviewPage = ({ params }) => {
                           <RatingStars rating={review.rating} />
                         </div>
                         <p className="text-sm text-gray-500">
-                          {review.user?.email || 'Anonymous'} • {new Date(review.createdAt).toLocaleDateString()}
+                          {review.user?.email || review.userName || 'Anonymous'} • {new Date(review.createdAt || new Date()).toLocaleDateString()}
                         </p>
                       </div>
                       <button className="text-gray-500 hover:text-[#e50000] transition-colors">
                         <BiLike size={20} />
                       </button>
                     </div>
-                    <p className="text-gray-300 leading-relaxed">{review.review}</p>
+                    <p className="text-gray-300 leading-relaxed">{review.comment || review.review || 'No comment'}</p>
                   </div>
                 ))}
               </div>

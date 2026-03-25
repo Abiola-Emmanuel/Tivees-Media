@@ -8,9 +8,11 @@ import Image from 'next/image';
 import { FaPlay, FaPlus } from 'react-icons/fa6';
 import { AiOutlineLike } from "react-icons/ai";
 import { MdAirplay } from "react-icons/md";
+import { AiOutlineStar, AiFillStar } from 'react-icons/ai';
 import Navbar from '@/components/Navbar';
 import FreeTrial from '@/components/FreeTrial';
 import { CiCalendar } from "react-icons/ci";
+import { BiLike, BiComment, BiSend, BiSmile, BiImage } from 'react-icons/bi';
 import { MdOutlineTranslate } from "react-icons/md";
 import Footer from '@/components/Footer';
 
@@ -19,6 +21,7 @@ export default function MoviePage({ params }) {
   console.log('Movie ID from params:', id);
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState([]);
   const [error, setError] = useState(null);
   const router = useRouter();
   const url = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -40,6 +43,9 @@ export default function MoviePage({ params }) {
         if (response.data.status === "SUCCESS") {
           setMovie(response.data.movie);
         }
+
+
+
       } catch (err) {
         console.error("Error fetching movie details:", err);
         setError("Failed to load movie details");
@@ -52,6 +58,54 @@ export default function MoviePage({ params }) {
       fetchMovieDetails();
     }
   }, [id, url]);
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      const authToken = localStorage.getItem("authToken");
+      try {
+        const reviewsResponse = await axios.get(
+          `${url}/api/v1/users/getReviews/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${authToken}`
+            }
+          }
+        );
+
+        if (reviewsResponse.data.status === "SUCCESS") {
+          setReviews(reviewsResponse.data.reviews);
+        }
+      } catch (reviewErr) {
+        console.log("Reviews endpoint not available");
+        setReviews([]);
+      }
+    }
+
+    fetchReviews();
+  }, [id, url]);
+
+  const RatingStars = ({ rating, interactive = false, onRatingChange, onHover }) => {
+    return (
+      <div className="flex gap-1.5">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            onClick={() => interactive && onRatingChange?.(star)}
+            onMouseEnter={() => interactive && onHover?.(star)}
+            onMouseLeave={() => interactive && onHover?.(0)}
+            className={`transition-all duration-200 ${interactive ? 'cursor-pointer transform hover:scale-110' : 'cursor-default'}`}
+          >
+            {(interactive ? hoverRating || rating : rating) >= star ? (
+              <AiFillStar className="text-[#e50000] drop-shadow-glow" size={32} />
+            ) : (
+              <AiOutlineStar className="text-gray-500" size={32} />
+            )}
+          </button>
+        ))}
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -199,10 +253,29 @@ export default function MoviePage({ params }) {
                 className="bg-[#1a1a1a] border border-white/10 px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-white/5 transition-all text-sm">
                 <span>+</span> Add Your Review
               </button>
+
             </div>
 
-            <div className="text-center py-8">
-              <p className="text-gray-400">No reviews yet. Be the first to review this movie!</p>
+            <div className="text-center max-h-66 overflow-y-auto py-8">
+              {reviews.map((review, index) => (
+                <div key={index} className="bg-[#0f0f0f] border border-white/10 rounded-xl p-6 hover:border-white/20 transition-all">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <RatingStars rating={review.rating} />
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        {review.user?.email || 'Anonymous'} • {new Date(review.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button className="text-gray-500 hover:text-[#e50000] transition-colors">
+                      <BiLike size={20} />
+                    </button>
+                  </div>
+                  <p className="text-gray-300 leading-relaxed">{review.review}</p>
+                </div>
+              ))}
+
             </div>
           </div>
         </div>
