@@ -104,7 +104,7 @@ const Movies = () => {
       <div className='relative w-[90%]  mx-auto my-30 '>
 
         <div className='flex gap-3 mb-8 relative'>
-          <div className='flex-1 relative'>
+          <div className='flex-1 relative' id="movie-search">
             <input
               type='text'
               placeholder='Search movies...'

@@ -252,8 +252,10 @@ const SignIn = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 1.3 }}
             >
-              <p className='text-white text-xs sm:text-sm'>New to TiveesMedia?</p>
-              <p className='text-white text-xs sm:text-sm cursor-pointer hover:underline font-medium'>Sign up now.</p>
+              <p className='text-white text-xs sm:text-sm'>Already have an account?</p>
+              <p
+                onClick={() => router.push('/login')}
+                className='text-white text-xs sm:text-sm cursor-pointer hover:underline font-medium'>Login</p>
             </motion.div>
 
             <motion.p

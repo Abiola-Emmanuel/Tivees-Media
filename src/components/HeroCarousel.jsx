@@ -154,16 +154,9 @@ function HeroCarousel() {
                     </button>
 
                     <button className='bg-black p-3 hover:bg-black/40 cursor-pointer rounded-lg'>
-                      <FaPlus className='text-white' />
-                    </button>
-
-                    <button className='bg-black p-3 hover:bg-black/40 cursor-pointer rounded-lg'>
                       <AiOutlineLike className='text-white' />
                     </button>
 
-                    <button className='bg-black p-3 hover:bg-black/40 cursor-pointer rounded-lg'>
-                      <FaVolumeHigh className='text-white' />
-                    </button>
                   </div>
 
 

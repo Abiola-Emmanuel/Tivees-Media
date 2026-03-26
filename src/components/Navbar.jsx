@@ -7,6 +7,8 @@ import { CiSearch } from "react-icons/ci";
 import { IoIosNotificationsOutline } from "react-icons/io";
 import { HiMenuAlt3 } from "react-icons/hi";
 import { IoClose } from "react-icons/io5";
+import { useRouter } from 'next/navigation';
+import { useEffect, useCallback } from 'react';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -25,6 +27,40 @@ const Navbar = () => {
   const closeMenu = () => {
     setIsMenuOpen(false);
   }
+
+  const router = useRouter();
+
+  const scrollToSearch = useCallback(() => {
+    setTimeout(() => {
+      const searchElement = document.getElementById('movie-search');
+      const navbar = document.querySelector('nav');
+      if (searchElement && navbar) {
+        const navbarHeight = navbar.offsetHeight || 80;
+        const searchTop = searchElement.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo({
+          top: searchTop - navbarHeight - 20,
+          behavior: 'smooth'
+        });
+        searchElement.querySelector('input')?.focus();
+      }
+    }, 100);
+  }, [router]);
+
+  const handleSearchClick = () => {
+    router.push('/movies');
+    scrollToSearch();
+  };
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#movie-search') {
+        scrollToSearch();
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [scrollToSearch]);
 
   // Menu animation variants
   const menuVariants = {
@@ -91,10 +127,11 @@ const Navbar = () => {
 
             {/* Right Icons */}
             <div className='flex items-center gap-3 md:gap-4'>
-              <CiSearch className='text-white hidden md:flex text-xl md:text-2xl cursor-pointer hover:text-red-500 transition-colors' />
+              <CiSearch
+                onClick={handleSearchClick}
+                className='text-white hidden md:flex text-xl md:text-2xl cursor-pointer hover:text-red-500 transition-colors' />
               <IoIosNotificationsOutline className='text-white hidden md:flex text-xl md:text-2xl cursor-pointer hover:text-red-500 transition-colors' />
 
-              {/* Hamburger Menu Button - Visible on mobile */}
               <button
                 onClick={toggleMenu}
                 className='md:hidden bg-black border-black/15 p-3 rounded-lg text-white hover:text-red-500 transition-colors'

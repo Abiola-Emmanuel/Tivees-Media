@@ -193,7 +193,9 @@ const SignIn = () => {
               className='flex items-center gap-1 sm:gap-2 mt-4 flex-wrap'
             >
               <p className='text-white text-xs sm:text-sm'>New to TiveesMedia?</p>
-              <p className='text-white text-xs sm:text-sm cursor-pointer hover:underline font-medium'>Sign up now.</p>
+              <p
+                onClick={() => router.push('/sign-in')}
+                className='text-white text-xs sm:text-sm cursor-pointer hover:underline font-medium'>Sign up now.</p>
             </motion.div>
 
             <motion.p
