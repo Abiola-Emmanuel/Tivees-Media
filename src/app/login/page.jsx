@@ -17,23 +17,20 @@ const SignIn = () => {
   const handleLogin = async (e) => {
     e.preventDefault()
 
-    // Validate form fields
     if (!email || !password) {
       alert('Please fill in all fields')
       return
     }
 
     try {
-      const authToken = localStorage.getItem('authToken')
 
       const requestData = {
         email: email,
         password: password,
       }
 
-      const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {}
 
-      const response = await axios.post(`${url}/users/login`, requestData, { headers })
+      const response = await axios.post(`${url}/users/login`, requestData)
 
       if (response.data.status === 'SUCCESS' && response.data.token) {
         localStorage.setItem('authToken', response.data.token)
