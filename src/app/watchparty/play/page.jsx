@@ -30,9 +30,7 @@ const WatchPartyPlayer = () => {
   const wsRef = useRef(null);
 
   // State
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [isMuted, setIsMuted] = useState(false);
-  const [volume, setVolume] = useState(1);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [activePanel, setActivePanel] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isHost, setIsHost] = useState(false);
@@ -66,14 +64,8 @@ const WatchPartyPlayer = () => {
         // Disable native controls and allow only custom controls
         playerRef.current.controls = false;
 
-        // Unmute by default and set volume to 100%
-        playerRef.current.muted = false;
-        playerRef.current.volume = 1;
-
         setPlayerReady(true);
-        setIsMuted(false);
-        setVolume(1);
-        console.log('✅ Player initialized with sound enabled and controls disabled');
+        console.log('✅ Player initialized with controls disabled');
       }
     };
 
@@ -210,22 +202,6 @@ const WatchPartyPlayer = () => {
           })
           .catch(err => {
             console.error('❌ Error playing on guest:', err);
-            console.error('Error name:', err.name);
-            console.error('Error message:', err.message);
-
-            // Mute and try again if it's an autoplay policy error (common on mobile)
-            if (err.name === 'NotAllowedError') {
-              console.warn('⚠️ Autoplay policy blocked. Trying with muted audio...');
-              playerRef.current.muted = true;
-              playerRef.current.play()
-                .then(() => {
-                  console.log('✅ Played muted on mobile');
-                  setIsMuted(true);
-                })
-                .catch(err2 => {
-                  console.error('❌ Failed even when muted:', err2);
-                });
-            }
           })
           .finally(() => {
             setIsSyncing(false);
@@ -243,8 +219,6 @@ const WatchPartyPlayer = () => {
           })
           .catch(err => {
             console.error('❌ Error pausing on guest:', err);
-            console.error('Error name:', err.name);
-            console.error('Error message:', err.message);
           })
           .finally(() => {
             setIsSyncing(false);
@@ -320,29 +294,6 @@ const WatchPartyPlayer = () => {
         wsRef.current.send(JSON.stringify({ type: 'pause' }));
         console.log('📤 Pause event sent via WebSocket');
       }
-    }
-  };
-
-  const toggleMute = () => {
-    if (!isHost) {
-      console.warn('⚠️ Only the host can control volume');
-      return;
-    }
-    if (playerRef.current) {
-      playerRef.current.muted = !playerRef.current.muted;
-      setIsMuted(!isMuted);
-      console.log(playerRef.current.muted ? '🔇 Muted' : '🔊 Unmuted');
-    }
-  };
-
-  const handleVolumeChange = (newVolume) => {
-    if (!isHost) {
-      console.warn('⚠️ Only the host can control volume');
-      return;
-    }
-    if (playerRef.current) {
-      playerRef.current.volume = newVolume;
-      setVolume(newVolume);
     }
   };
 
@@ -452,29 +403,6 @@ const WatchPartyPlayer = () => {
             >
               <MdPause size={18} /> Pause
             </button>
-            <button
-              onClick={toggleMute}
-              disabled={!isHost}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition text-sm ${isHost
-                ? 'bg-white/10 hover:bg-white/20 cursor-pointer'
-                : 'bg-white/5 cursor-not-allowed opacity-50'
-                }`}
-              title={isHost ? (isMuted ? 'Unmute' : 'Mute') : 'Only host can adjust volume'}
-            >
-              {isMuted ? '🔇' : '🔊'} {isMuted ? 'Unmute' : 'Mute'}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={volume}
-              onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-              disabled={!isHost}
-              className={`w-24 accent-red-500 ${isHost ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
-                }`}
-              title={isHost ? 'Volume' : 'Only host can adjust volume'}
-            />
           </div>
 
           {/* Action Buttons */}
