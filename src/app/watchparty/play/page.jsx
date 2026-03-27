@@ -178,9 +178,15 @@ const WatchPartyPlayer = () => {
             try {
               playerRef.current.currentTime = data.state.currentTime || 0;
               if (data.state.isPlaying) {
-                playerRef.current.play().catch(() => { });
+                const playResult = playerRef.current.play();
+                if (playResult && typeof playResult.catch === 'function') {
+                  playResult.catch(() => {});
+                }
               } else {
-                playerRef.current.pause().catch(() => { });
+                const pauseResult = playerRef.current.pause();
+                if (pauseResult && typeof pauseResult.catch === 'function') {
+                  pauseResult.catch(() => {});
+                }
               }
             } catch (err) {
               console.error('Error applying sync:', err);
@@ -194,7 +200,10 @@ const WatchPartyPlayer = () => {
         console.log('▶️ Received play command');
         isSyncingRef.current = true;
         if (playerRef.current) {
-          playerRef.current.play().catch(() => { });
+          const playResult = playerRef.current.play();
+          if (playResult && typeof playResult.catch === 'function') {
+            playResult.catch(() => {});
+          }
         }
         isSyncingRef.current = false;
       }
@@ -203,7 +212,10 @@ const WatchPartyPlayer = () => {
         console.log('⏸️ Received pause command');
         isSyncingRef.current = true;
         if (playerRef.current) {
-          playerRef.current.pause().catch(() => { });
+          const pauseResult = playerRef.current.pause();
+          if (pauseResult && typeof pauseResult.catch === 'function') {
+            pauseResult.catch(() => {});
+          }
         }
         isSyncingRef.current = false;
       }
