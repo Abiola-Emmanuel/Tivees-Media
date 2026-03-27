@@ -15,7 +15,14 @@ const WatchPartyPlayer = () => {
   // URL Parameters
   const partyId = searchParams.get('partyId');
   const cfid = searchParams.get('cfid');
-  const userId = searchParams.get('userId');
+  let userId = searchParams.get('userId');
+
+
+  if (!userId) {
+    const userString = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+    const user = userString ? JSON.parse(userString) : null;
+    userId = user?._id;
+  }
 
   // Player & WebSocket refs
   const iframeRef = useRef(null);
@@ -307,7 +314,7 @@ const WatchPartyPlayer = () => {
   };
 
   const handleShareParty = () => {
-    const shareUrl = `${window.location.origin}/watchparty/play?partyId=${partyId}&cfid=${cfid}&userId=${userId}`;
+    const shareUrl = `${window.location.origin}/watchparty/play?partyId=${partyId}&cfid=${cfid}`;
     navigator.clipboard.writeText(shareUrl);
     alert('Watch party link copied to clipboard!');
   };

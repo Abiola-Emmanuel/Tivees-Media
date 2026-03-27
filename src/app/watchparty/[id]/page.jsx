@@ -57,10 +57,7 @@ const WatchParty = () => {
 
   const handleCopyLink = () => {
     if (partyId && cfid) {
-      const userString = localStorage.getItem('user');
-      const user = userString ? JSON.parse(userString) : null;
-      const userId = user?._id;
-      const shareUrl = `${window.location.origin}/watchparty/play?partyId=${partyId}&cfid=${cfid}&userId=${userId}`;
+      const shareUrl = `${window.location.origin}/watchparty/play?partyId=${partyId}&cfid=${cfid}`;
       navigator.clipboard.writeText(shareUrl);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
@@ -132,10 +129,7 @@ const WatchParty = () => {
 
   const handleStartWatching = () => {
     if (partyId && cfid) {
-      const userString = localStorage.getItem('user');
-      const user = userString ? JSON.parse(userString) : null;
-      const userId = user?._id;
-      const playUrl = `/watchparty/play?partyId=${partyId}&cfid=${cfid}&userId=${userId}`;
+      const playUrl = `/watchparty/play?partyId=${partyId}&cfid=${cfid}`;
       router.push(playUrl);
     }
   };
