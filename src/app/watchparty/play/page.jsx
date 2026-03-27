@@ -210,6 +210,22 @@ const WatchPartyPlayer = () => {
           })
           .catch(err => {
             console.error('❌ Error playing on guest:', err);
+            console.error('Error name:', err.name);
+            console.error('Error message:', err.message);
+
+            // Mute and try again if it's an autoplay policy error (common on mobile)
+            if (err.name === 'NotAllowedError') {
+              console.warn('⚠️ Autoplay policy blocked. Trying with muted audio...');
+              playerRef.current.muted = true;
+              playerRef.current.play()
+                .then(() => {
+                  console.log('✅ Played muted on mobile');
+                  setIsMuted(true);
+                })
+                .catch(err2 => {
+                  console.error('❌ Failed even when muted:', err2);
+                });
+            }
           })
           .finally(() => {
             setIsSyncing(false);
@@ -227,6 +243,8 @@ const WatchPartyPlayer = () => {
           })
           .catch(err => {
             console.error('❌ Error pausing on guest:', err);
+            console.error('Error name:', err.name);
+            console.error('Error message:', err.message);
           })
           .finally(() => {
             setIsSyncing(false);
