@@ -1,8 +1,8 @@
-'use client';
+'use client'
 
 export const dynamic = 'force-dynamic';
 
-import React, { useEffect, useState, useRef, Suspense } from 'react';
+import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { MdClose, MdShare, MdPerson, MdMessage } from 'react-icons/md';
 import AttendeesPanel from '@/components/AttendesPanel';
@@ -12,12 +12,10 @@ const WatchPartyPlayer = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // URL Parameters
   const partyId = searchParams.get('partyId');
   const cfid = searchParams.get('cfid');
   const userIdParam = searchParams.get('userId');
 
-  // State
   const [isHost, setIsHost] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [activePanel, setActivePanel] = useState(null);
@@ -26,7 +24,12 @@ const WatchPartyPlayer = () => {
   const [userId, setUserId] = useState(userIdParam || null);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // Hydrate and get userId from localStorage if not in URL
+  const iframeRef = useRef(null);
+  const playerRef = useRef(null);
+  const wsRef = useRef(null);
+  const isSyncingRef = useRef(false);
+  const isHostRef = useRef(false);
+
   useEffect(() => {
     if (!userId) {
       const userString = localStorage.getItem('user');
@@ -36,93 +39,136 @@ const WatchPartyPlayer = () => {
     setIsHydrated(true);
   }, []);
 
-  // Refs
-  const iframeRef = useRef(null);
-  const playerRef = useRef(null);
-  const wsRef = useRef(null);
-  const isSyncingRef = useRef(false);
+  const setPlayerControls = (hostControlsEnabled) => {
+    if (!playerRef.current) return;
 
-  // Initialize player
-  useEffect(() => {
-    if (!cfid) return;
+    try {
+      playerRef.current.controls = hostControlsEnabled;
+      console.log(`Controls updated for ${hostControlsEnabled ? 'host' : 'guest'}:`, hostControlsEnabled);
+    } catch (err) {
+      console.error('Failed to update player controls:', err);
+    }
+  };
 
-    const initPlayer = () => {
-      if (!iframeRef.current) {
-        console.warn('Iframe ref not yet available, retrying...');
-        setTimeout(initPlayer, 100);
+  const setPlayerMuted = (muted) => {
+    if (!playerRef.current) return;
+
+    try {
+      playerRef.current.muted = muted;
+      console.log('Player muted:', muted);
+    } catch (err) {
+      console.warn('Unable to update mute state:', err);
+    }
+  };
+
+  const runRemoteAction = async (action, payload = {}) => {
+    if (!playerRef.current) {
+      console.warn(`Skipping ${action}: player not initialized`);
+      return;
+    }
+
+    isSyncingRef.current = true;
+
+    try {
+      if (action === 'seek') {
+        playerRef.current.currentTime = payload.currentTime || 0;
+        console.log('Remote seek applied:', payload.currentTime || 0);
         return;
       }
 
-      if (window.Stream) {
-        try {
-          // Set the iframe source - initially without controls
-          iframeRef.current.src = `https://iframe.videodelivery.net/${cfid}?controls=false`;
-
-          // Initialize Stream player
-          playerRef.current = window.Stream(iframeRef.current);
-          console.log('✅ Player initialized');
-          setPlayerReady(true);
-        } catch (err) {
-          console.error('Error initializing player:', err);
+      if (action === 'pause') {
+        const pauseResult = playerRef.current.pause();
+        if (pauseResult && typeof pauseResult.then === 'function') {
+          await pauseResult;
         }
-      } else {
-        // Load SDK if not already loaded
-        const script = document.createElement('script');
-        script.src = 'https://embed.videodelivery.net/embed/sdk.latest.js';
-        script.async = true;
-        script.onload = () => {
-          try {
-            iframeRef.current.src = `https://iframe.videodelivery.net/${cfid}?controls=false`;
-            playerRef.current = window.Stream(iframeRef.current);
-            console.log('✅ Player initialized after SDK load');
-            setPlayerReady(true);
-          } catch (err) {
-            console.error('Error initializing player after SDK load:', err);
-          }
-        };
-        script.onerror = () => {
-          console.error('Failed to load Stream SDK');
-        };
-        document.body.appendChild(script);
+        console.log('Remote pause applied');
+        return;
+      }
+
+      if (action === 'play') {
+        setPlayerMuted(!isHostRef.current);
+
+        const playResult = playerRef.current.play();
+        if (playResult && typeof playResult.then === 'function') {
+          await playResult;
+        }
+        console.log('Remote play applied');
+      }
+    } finally {
+      isSyncingRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    if (!cfid) return;
+
+    let retryTimeout;
+    let sdkScript;
+
+    const initializePlayer = () => {
+      if (!iframeRef.current) {
+        console.warn('Iframe ref not yet available, retrying...');
+        retryTimeout = window.setTimeout(initializePlayer, 100);
+        return;
+      }
+
+      try {
+        iframeRef.current.src = `https://iframe.videodelivery.net/${cfid}?controls=false`;
+        playerRef.current = window.Stream(iframeRef.current);
+        setPlayerControls(false);
+        setPlayerMuted(true);
+        setPlayerReady(true);
+        console.log('Player initialized');
+      } catch (err) {
+        console.error('Error initializing player:', err);
       }
     };
 
-    initPlayer();
+    if (window.Stream) {
+      initializePlayer();
+    } else {
+      sdkScript = document.createElement('script');
+      sdkScript.src = 'https://embed.videodelivery.net/embed/sdk.latest.js';
+      sdkScript.async = true;
+      sdkScript.onload = initializePlayer;
+      sdkScript.onerror = () => {
+        console.error('Failed to load Stream SDK');
+        setConnectionStatus('error');
+      };
+      document.body.appendChild(sdkScript);
+    }
+
+    return () => {
+      if (retryTimeout) {
+        window.clearTimeout(retryTimeout);
+      }
+
+      if (sdkScript && document.body.contains(sdkScript)) {
+        document.body.removeChild(sdkScript);
+      }
+    };
   }, [cfid]);
 
-  // Update controls when host status changes
-  useEffect(() => {
-    if (!iframeRef.current || !playerReady) return;
-
-    const controls = isHost ? 'true' : 'false';
-    iframeRef.current.src = `https://iframe.videodelivery.net/${cfid}?controls=${controls}`;
-    console.log(`🎮 Controls updated for ${isHost ? 'host' : 'guest'}: ${controls}`);
-  }, [isHost, playerReady, cfid]);
-
-  // Attach player event listeners (only for host)
   useEffect(() => {
     if (!playerReady || !playerRef.current || !isHost) return;
 
-    console.log('🎬 Attaching player event listeners (host)');
+    console.log('Attaching player event listeners for host');
 
     const handlePlay = () => {
-      console.log('▶️ Play event');
       if (!isSyncingRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'play' }));
-        console.log('📤 Play sent to guests');
+        console.log('Play sent to guests');
       }
     };
 
     const handlePause = () => {
-      console.log('⏸️ Pause event');
       if (!isSyncingRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'pause' }));
-        console.log('📤 Pause sent to guests');
+        console.log('Pause sent to guests');
       }
     };
 
     const handleSeeked = () => {
-      console.log('⏩ Seek event');
       if (!isSyncingRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(
           JSON.stringify({
@@ -130,7 +176,7 @@ const WatchPartyPlayer = () => {
             currentTime: playerRef.current.currentTime,
           })
         );
-        console.log('📤 Seek sent to guests');
+        console.log('Seek sent to guests');
       }
     };
 
@@ -145,7 +191,6 @@ const WatchPartyPlayer = () => {
     };
   }, [playerReady, isHost]);
 
-  // WebSocket connection
   useEffect(() => {
     if (!partyId || !cfid || !userId || !playerReady) return;
 
@@ -153,80 +198,56 @@ const WatchPartyPlayer = () => {
     const wsHost = process.env.NEXT_PUBLIC_WS_HOST;
     const wsUrl = `${wsProtocol}://${wsHost}/ws/watchparty?partyId=${partyId}&cfid=${cfid}&userId=${userId}`;
 
-    console.log('🔌 Connecting to:', wsUrl);
+    console.log('Connecting to:', wsUrl);
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
-      console.log('✅ WebSocket connected');
+      console.log('WebSocket connected');
       setConnectionStatus('connected');
     };
 
     wsRef.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log('📩 WS Message:', data);
+      console.log('WS Message:', data);
 
       if (data.type === 'sync') {
-        // User just joined
         const userIsHost = data.hostId === userId;
+        isHostRef.current = userIsHost;
         setIsHost(userIsHost);
-        console.log('🎥 Host?', userIsHost);
+        setPlayerControls(userIsHost);
+        setPlayerMuted(!userIsHost);
+        console.log('Host?', userIsHost);
 
-        // Apply initial state
-        isSyncingRef.current = true;
-        setTimeout(() => {
-          if (playerRef.current && data.state) {
-            try {
-              playerRef.current.currentTime = data.state.currentTime || 0;
-              if (data.state.isPlaying) {
-                const playResult = playerRef.current.play();
-                if (playResult && typeof playResult.catch === 'function') {
-                  playResult.catch(() => {});
-                }
-              } else {
-                const pauseResult = playerRef.current.pause();
-                if (pauseResult && typeof pauseResult.catch === 'function') {
-                  pauseResult.catch(() => {});
-                }
-              }
-            } catch (err) {
-              console.error('Error applying sync:', err);
-            }
-          }
-          isSyncingRef.current = false;
+        window.setTimeout(() => {
+          if (!playerRef.current || !data.state) return;
+
+          runRemoteAction('seek', { currentTime: data.state.currentTime || 0 })
+            .then(() => (data.state.isPlaying ? runRemoteAction('play') : runRemoteAction('pause')))
+            .catch((err) => {
+              console.error('Error applying sync:', err?.name || err, err?.message || '');
+            });
         }, 300);
       }
 
       if (data.type === 'play') {
-        console.log('▶️ Received play command');
-        isSyncingRef.current = true;
-        if (playerRef.current) {
-          const playResult = playerRef.current.play();
-          if (playResult && typeof playResult.catch === 'function') {
-            playResult.catch(() => {});
-          }
-        }
-        isSyncingRef.current = false;
+        console.log('Received play command');
+        runRemoteAction('play').catch((err) => {
+          console.error('Guest failed to apply remote play:', err?.name || err, err?.message || '');
+        });
       }
 
       if (data.type === 'pause') {
-        console.log('⏸️ Received pause command');
-        isSyncingRef.current = true;
-        if (playerRef.current) {
-          const pauseResult = playerRef.current.pause();
-          if (pauseResult && typeof pauseResult.catch === 'function') {
-            pauseResult.catch(() => {});
-          }
-        }
-        isSyncingRef.current = false;
+        console.log('Received pause command');
+        runRemoteAction('pause').catch((err) => {
+          console.error('Guest failed to apply remote pause:', err?.name || err, err?.message || '');
+        });
       }
 
       if (data.type === 'seek') {
-        console.log('⏩ Received seek command');
-        isSyncingRef.current = true;
-        if (playerRef.current) {
-          playerRef.current.currentTime = data.currentTime;
-        }
-        isSyncingRef.current = false;
+        console.log('Received seek command');
+        runRemoteAction('seek', { currentTime: data.currentTime }).catch((err) => {
+          console.error('Guest failed to apply remote seek:', err?.name || err, err?.message || '');
+        });
       }
 
       if (data.type === 'attendeeCount') {
@@ -235,12 +256,12 @@ const WatchPartyPlayer = () => {
     };
 
     wsRef.current.onerror = () => {
-      console.error('❌ WebSocket error');
+      console.error('WebSocket error');
       setConnectionStatus('error');
     };
 
     wsRef.current.onclose = () => {
-      console.log('🔌 WebSocket closed');
+      console.log('WebSocket closed');
       setConnectionStatus('disconnected');
     };
 
@@ -256,13 +277,13 @@ const WatchPartyPlayer = () => {
   };
 
   if (!isHydrated) {
-    return null; // Wait for hydration before rendering
+    return null;
   }
 
   if (!partyId || !cfid || !userId) {
     return (
       <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white gap-4">
-        <h2 className="text-2xl font-bold">❌ Error</h2>
+        <h2 className="text-2xl font-bold">Error</h2>
         <p className="text-gray-400">Missing watch party parameters</p>
       </div>
     );
@@ -270,15 +291,13 @@ const WatchPartyPlayer = () => {
 
   return (
     <div className="relative w-full h-screen bg-black flex overflow-hidden font-sans text-white">
-      {/* Back Button */}
       <button
         onClick={() => router.back()}
         className="absolute top-6 left-6 z-20 cursor-pointer transition text-white hover:opacity-70"
       >
-        ← Back
+        Back
       </button>
 
-      {/* Connection Status */}
       <div
         className="absolute top-6 right-6 z-20 flex items-center gap-2 px-3 py-2 rounded-full"
         style={{
@@ -299,12 +318,11 @@ const WatchPartyPlayer = () => {
       </div>
 
       <div className="relative flex-1 flex flex-col justify-between p-6">
-        {/* Title */}
         <div className="flex justify-between items-start z-10">
           <div className="invisible" />
           <h2 className="text-sm font-medium opacity-80 uppercase tracking-widest text-center max-w-xs">
             Watch Party
-            {isHost && <span className="ml-2 text-red-500 text-xs">👑 HOST</span>}
+            {isHost && <span className="ml-2 text-red-500 text-xs">HOST</span>}
           </h2>
           <button
             onClick={() => setActivePanel(null)}
@@ -314,7 +332,6 @@ const WatchPartyPlayer = () => {
           </button>
         </div>
 
-        {/* Player Container */}
         <div className="absolute inset-0 flex items-center justify-center z-0">
           <iframe
             ref={iframeRef}
@@ -326,16 +343,13 @@ const WatchPartyPlayer = () => {
           />
         </div>
 
-        {/* Bottom Controls */}
         <div className="z-10 flex flex-col gap-6">
-          {/* Guest Notice */}
           {!isHost && (
             <div className="px-3 py-2 bg-blue-500/20 border border-blue-500/50 rounded-lg text-xs text-blue-200">
-              👑 Only host controls the video
+              Only host controls the video
             </div>
           )}
 
-          {/* Action Buttons */}
           <div className="flex items-center gap-4">
             <div className="flex-1 flex flex-col items-end gap-5">
               <button
@@ -371,7 +385,6 @@ const WatchPartyPlayer = () => {
           </div>
         </div>
 
-        {/* Side Panels */}
         {activePanel && (
           <div className="w-80 h-full bg-black border-l border-white/10 flex flex-col animate-in slide-in-from-right duration-300">
             {activePanel === 'comments' ? <CommentsPanel /> : <AttendeesPanel />}
@@ -380,7 +393,8 @@ const WatchPartyPlayer = () => {
 
         <style jsx>{`
           @keyframes pulse {
-            0%, 100% {
+            0%,
+            100% {
               opacity: 1;
             }
             50% {
