@@ -50,11 +50,14 @@ const WatchPartyPlayer = () => {
       if (window.Stream) {
         const streamElement = iframeRef.current;
 
-        // Set the full URL for the iframe
-        streamElement.src = `https://iframe.videodelivery.net/${cfid}`;
+        // Set the full URL for the iframe with controls disabled
+        streamElement.src = `https://iframe.videodelivery.net/${cfid}?controls=false`;
 
         // Initialize the Stream player
         playerRef.current = window.Stream(streamElement);
+
+        // Disable native controls and allow only custom controls
+        playerRef.current.controls = false;
 
         // Unmute by default and set volume to 100%
         playerRef.current.muted = false;
@@ -63,7 +66,7 @@ const WatchPartyPlayer = () => {
         setPlayerReady(true);
         setIsMuted(false);
         setVolume(1);
-        console.log('✅ Player initialized with sound enabled');
+        console.log('✅ Player initialized with sound enabled and controls disabled');
       }
     };
 
@@ -139,8 +142,8 @@ const WatchPartyPlayer = () => {
       return;
     }
 
-    const wsProtocol = process.env.NEXT_PUBLIC_WS_PROTOCOL || 'ws';
-    const wsHost = process.env.NEXT_PUBLIC_WS_HOST || 'localhost:3500';
+    const wsProtocol = process.env.NEXT_PUBLIC_WS_PROTOCOL;
+    const wsHost = process.env.NEXT_PUBLIC_WS_HOST;
     const wsUrl = `${wsProtocol}://${wsHost}/ws/watchparty?partyId=${partyId}&cfid=${cfid}&userId=${userId}`;
 
     console.log('🔌 WS Config:', { wsProtocol, wsHost });
@@ -247,22 +250,44 @@ const WatchPartyPlayer = () => {
     };
   }, [partyId, cfid, userId, wsAttempts]);
 
-  // Manual controls (for testing)
+  // Manual controls (for host only)
   const manualPlay = () => {
+    if (!isHost) {
+      console.warn('⚠️ Only the host can control playback');
+      return;
+    }
     if (playerRef.current) {
       playerRef.current.play();
       console.log('▶️ Manual play');
+      // Send sync message to all other users
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'play' }));
+        console.log('📤 Play event sent via WebSocket');
+      }
     }
   };
 
   const manualPause = () => {
+    if (!isHost) {
+      console.warn('⚠️ Only the host can control playback');
+      return;
+    }
     if (playerRef.current) {
       playerRef.current.pause();
       console.log('⏸️ Manual pause');
+      // Send sync message to all other users
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'pause' }));
+        console.log('📤 Pause event sent via WebSocket');
+      }
     }
   };
 
   const toggleMute = () => {
+    if (!isHost) {
+      console.warn('⚠️ Only the host can control volume');
+      return;
+    }
     if (playerRef.current) {
       playerRef.current.muted = !playerRef.current.muted;
       setIsMuted(!isMuted);
@@ -271,6 +296,10 @@ const WatchPartyPlayer = () => {
   };
 
   const handleVolumeChange = (newVolume) => {
+    if (!isHost) {
+      console.warn('⚠️ Only the host can control volume');
+      return;
+    }
     if (playerRef.current) {
       playerRef.current.volume = newVolume;
       setVolume(newVolume);
@@ -354,24 +383,43 @@ const WatchPartyPlayer = () => {
 
         {/* Controls */}
         <div className="z-10 flex flex-col gap-6">
-          {/* Manual Controls (Dev Testing) */}
+          {/* Manual Controls (Host Only) */}
+          {!isHost && (
+            <div className="px-3 py-2 bg-blue-500/20 border border-blue-500/50 rounded-lg text-xs text-blue-200">
+              👑 Only the host can control playback
+            </div>
+          )}
           <div className="flex gap-2 flex-wrap items-center">
             <button
               onClick={manualPlay}
-              className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition text-sm"
+              disabled={!isHost}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition text-sm ${isHost
+                ? 'bg-white/10 hover:bg-white/20 cursor-pointer'
+                : 'bg-white/5 cursor-not-allowed opacity-50'
+                }`}
+              title={isHost ? 'Play' : 'Only host can play'}
             >
               <MdPlayArrow size={18} /> Play
             </button>
             <button
               onClick={manualPause}
-              className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition text-sm"
+              disabled={!isHost}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition text-sm ${isHost
+                ? 'bg-white/10 hover:bg-white/20 cursor-pointer'
+                : 'bg-white/5 cursor-not-allowed opacity-50'
+                }`}
+              title={isHost ? 'Pause' : 'Only host can pause'}
             >
               <MdPause size={18} /> Pause
             </button>
             <button
               onClick={toggleMute}
-              className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition text-sm"
-              title={isMuted ? 'Unmute' : 'Mute'}
+              disabled={!isHost}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition text-sm ${isHost
+                ? 'bg-white/10 hover:bg-white/20 cursor-pointer'
+                : 'bg-white/5 cursor-not-allowed opacity-50'
+                }`}
+              title={isHost ? (isMuted ? 'Unmute' : 'Mute') : 'Only host can adjust volume'}
             >
               {isMuted ? '🔇' : '🔊'} {isMuted ? 'Unmute' : 'Mute'}
             </button>
@@ -382,8 +430,10 @@ const WatchPartyPlayer = () => {
               step="0.1"
               value={volume}
               onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-              className="w-24 cursor-pointer accent-red-500"
-              title="Volume"
+              disabled={!isHost}
+              className={`w-24 accent-red-500 ${isHost ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
+                }`}
+              title={isHost ? 'Volume' : 'Only host can adjust volume'}
             />
           </div>
 
