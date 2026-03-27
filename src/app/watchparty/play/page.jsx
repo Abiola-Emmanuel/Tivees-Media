@@ -182,10 +182,14 @@ const WatchPartyPlayer = () => {
             playerRef.current.currentTime = data.state.currentTime;
 
             if (data.state.isPlaying) {
-              playerRef.current.play();
+              playerRef.current.play().catch(err => {
+                console.error('Error playing during sync:', err);
+              });
               setIsPlaying(true);
             } else {
-              playerRef.current.pause();
+              playerRef.current.pause().catch(err => {
+                console.error('Error pausing during sync:', err);
+              });
               setIsPlaying(false);
             }
           } catch (err) {
@@ -197,26 +201,36 @@ const WatchPartyPlayer = () => {
 
       if (data.type === 'play') {
         // Host started playing
+        console.log('▶️ Guest received play command');
         setIsSyncing(true);
-        try {
-          playerRef.current.play();
-          setIsPlaying(true);
-        } catch (err) {
-          console.error('Error playing:', err);
-        }
-        setIsSyncing(false);
+        playerRef.current.play()
+          .then(() => {
+            console.log('✅ Guest video played successfully');
+            setIsPlaying(true);
+          })
+          .catch(err => {
+            console.error('❌ Error playing on guest:', err);
+          })
+          .finally(() => {
+            setIsSyncing(false);
+          });
       }
 
       if (data.type === 'pause') {
         // Host paused
+        console.log('⏸️ Guest received pause command');
         setIsSyncing(true);
-        try {
-          playerRef.current.pause();
-          setIsPlaying(false);
-        } catch (err) {
-          console.error('Error pausing:', err);
-        }
-        setIsSyncing(false);
+        playerRef.current.pause()
+          .then(() => {
+            console.log('✅ Guest video paused successfully');
+            setIsPlaying(false);
+          })
+          .catch(err => {
+            console.error('❌ Error pausing on guest:', err);
+          })
+          .finally(() => {
+            setIsSyncing(false);
+          });
       }
 
       if (data.type === 'seek') {
@@ -224,6 +238,7 @@ const WatchPartyPlayer = () => {
         setIsSyncing(true);
         try {
           playerRef.current.currentTime = data.currentTime;
+          console.log('⏩ Guest seeked to:', data.currentTime);
         } catch (err) {
           console.error('Error seeking:', err);
         }
