@@ -23,6 +23,7 @@ const WatchPartyPlayer = () => {
   const [playerReady, setPlayerReady] = useState(false);
   const [userId, setUserId] = useState(userIdParam || null);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [audioActivationRequired, setAudioActivationRequired] = useState(false);
 
   const iframeRef = useRef(null);
   const playerRef = useRef(null);
@@ -86,11 +87,26 @@ const WatchPartyPlayer = () => {
       }
 
       if (action === 'play') {
-        setPlayerMuted(!isHostRef.current);
+        try {
+          const playResult = playerRef.current.play();
+          if (playResult && typeof playResult.then === 'function') {
+            await playResult;
+          }
+          setAudioActivationRequired(false);
+        } catch (err) {
+          if (isHostRef.current) {
+            throw err;
+          }
 
-        const playResult = playerRef.current.play();
-        if (playResult && typeof playResult.then === 'function') {
-          await playResult;
+          console.warn('Guest autoplay with audio was blocked, retrying muted playback.');
+          setPlayerMuted(true);
+
+          const mutedPlayResult = playerRef.current.play();
+          if (mutedPlayResult && typeof mutedPlayResult.then === 'function') {
+            await mutedPlayResult;
+          }
+
+          setAudioActivationRequired(true);
         }
         console.log('Remote play applied');
       }
@@ -116,7 +132,7 @@ const WatchPartyPlayer = () => {
         iframeRef.current.src = `https://iframe.videodelivery.net/${cfid}?controls=false`;
         playerRef.current = window.Stream(iframeRef.current);
         setPlayerControls(false);
-        setPlayerMuted(true);
+        setPlayerMuted(false);
         setPlayerReady(true);
         console.log('Player initialized');
       } catch (err) {
@@ -215,7 +231,7 @@ const WatchPartyPlayer = () => {
         isHostRef.current = userIsHost;
         setIsHost(userIsHost);
         setPlayerControls(userIsHost);
-        setPlayerMuted(!userIsHost);
+        setPlayerMuted(false);
         console.log('Host?', userIsHost);
 
         window.setTimeout(() => {
@@ -274,6 +290,21 @@ const WatchPartyPlayer = () => {
     const shareUrl = `${window.location.origin}/watchparty/play?partyId=${partyId}&cfid=${cfid}`;
     navigator.clipboard.writeText(shareUrl);
     alert('Watch party link copied!');
+  };
+
+  const handleEnableAudio = async () => {
+    if (!playerRef.current) return;
+
+    try {
+      setPlayerMuted(false);
+      const playResult = playerRef.current.play();
+      if (playResult && typeof playResult.then === 'function') {
+        await playResult;
+      }
+      setAudioActivationRequired(false);
+    } catch (err) {
+      console.error('Failed to enable guest audio:', err?.name || err, err?.message || '');
+    }
   };
 
   if (!isHydrated) {
@@ -342,6 +373,17 @@ const WatchPartyPlayer = () => {
             className="absolute inset-0 w-full h-full"
           />
         </div>
+
+        {audioActivationRequired && !isHost && (
+          <div className="absolute inset-x-6 bottom-28 z-20">
+            <button
+              onClick={handleEnableAudio}
+              className="w-full rounded-xl border border-white/20 bg-black/75 px-4 py-3 text-sm text-white backdrop-blur-sm transition hover:bg-black/85"
+            >
+              Tap to enable watch party audio
+            </button>
+          </div>
+        )}
 
         <div className="z-10 flex flex-col gap-6">
           {!isHost && (
