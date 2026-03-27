@@ -171,18 +171,22 @@ const WatchPartyPlayer = () => {
         setIsSyncing(true);
         setTimeout(() => {
           try {
-            playerRef.current.currentTime = data.state.currentTime;
+            if (playerRef.current) {
+              playerRef.current.currentTime = data.state.currentTime;
 
-            if (data.state.isPlaying) {
-              playerRef.current.play().catch(err => {
-                console.error('Error playing during sync:', err);
-              });
-              setIsPlaying(true);
-            } else {
-              playerRef.current.pause().catch(err => {
-                console.error('Error pausing during sync:', err);
-              });
-              setIsPlaying(false);
+              if (data.state.isPlaying) {
+                const playResult = playerRef.current.play();
+                if (playResult && typeof playResult.catch === 'function') {
+                  playResult.catch(err => console.error('Error playing during sync:', err));
+                }
+                setIsPlaying(true);
+              } else {
+                const pauseResult = playerRef.current.pause();
+                if (pauseResult && typeof pauseResult.catch === 'function') {
+                  pauseResult.catch(err => console.error('Error pausing during sync:', err));
+                }
+                setIsPlaying(false);
+              }
             }
           } catch (err) {
             console.error('Error applying sync:', err);
@@ -195,34 +199,52 @@ const WatchPartyPlayer = () => {
         // Host started playing
         console.log('▶️ Guest received play command');
         setIsSyncing(true);
-        playerRef.current.play()
-          .then(() => {
-            console.log('✅ Guest video played successfully');
+        if (playerRef.current) {
+          const playResult = playerRef.current.play();
+          if (playResult && typeof playResult.then === 'function') {
+            playResult
+              .then(() => {
+                console.log('✅ Guest video played successfully');
+                setIsPlaying(true);
+              })
+              .catch(err => {
+                console.error('❌ Error playing on guest:', err);
+              })
+              .finally(() => {
+                setIsSyncing(false);
+              });
+          } else {
+            console.log('✅ Guest video played (no promise)');
             setIsPlaying(true);
-          })
-          .catch(err => {
-            console.error('❌ Error playing on guest:', err);
-          })
-          .finally(() => {
             setIsSyncing(false);
-          });
+          }
+        }
       }
 
       if (data.type === 'pause') {
         // Host paused
         console.log('⏸️ Guest received pause command');
         setIsSyncing(true);
-        playerRef.current.pause()
-          .then(() => {
-            console.log('✅ Guest video paused successfully');
+        if (playerRef.current) {
+          const pauseResult = playerRef.current.pause();
+          if (pauseResult && typeof pauseResult.then === 'function') {
+            pauseResult
+              .then(() => {
+                console.log('✅ Guest video paused successfully');
+                setIsPlaying(false);
+              })
+              .catch(err => {
+                console.error('❌ Error pausing on guest:', err);
+              })
+              .finally(() => {
+                setIsSyncing(false);
+              });
+          } else {
+            console.log('✅ Guest video paused (no promise)');
             setIsPlaying(false);
-          })
-          .catch(err => {
-            console.error('❌ Error pausing on guest:', err);
-          })
-          .finally(() => {
             setIsSyncing(false);
-          });
+          }
+        }
       }
 
       if (data.type === 'seek') {
