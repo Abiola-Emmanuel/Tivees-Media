@@ -2,9 +2,9 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useEffect, useState, useRef, useCallback, Suspense } from 'react';
+import React, { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { MdClose, MdPlayArrow, MdPause, MdShare, MdPerson, MdMessage } from 'react-icons/md';
+import { MdClose, MdShare, MdPerson, MdMessage } from 'react-icons/md';
 import AttendeesPanel from '@/components/AttendesPanel';
 import CommentsPanel from '@/components/CommentsPanel';
 
@@ -15,242 +15,206 @@ const WatchPartyPlayer = () => {
   // URL Parameters
   const partyId = searchParams.get('partyId');
   const cfid = searchParams.get('cfid');
-  let userId = searchParams.get('userId');
+  const userIdParam = searchParams.get('userId');
 
+  // State
+  const [isHost, setIsHost] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [activePanel, setActivePanel] = useState(null);
+  const [attendeeCount, setAttendeeCount] = useState(1);
+  const [playerReady, setPlayerReady] = useState(false);
+  const [userId, setUserId] = useState(userIdParam || null);
+  const [isHydrated, setIsHydrated] = useState(false);
 
-  if (!userId) {
-    const userString = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-    const user = userString ? JSON.parse(userString) : null;
-    userId = user?._id;
-  }
+  // Hydrate and get userId from localStorage if not in URL
+  useEffect(() => {
+    if (!userId) {
+      const userString = localStorage.getItem('user');
+      const user = userString ? JSON.parse(userString) : null;
+      setUserId(user?._id || null);
+    }
+    setIsHydrated(true);
+  }, []);
 
-  // Player & WebSocket refs
+  // Refs
   const iframeRef = useRef(null);
   const playerRef = useRef(null);
   const wsRef = useRef(null);
+  const isSyncingRef = useRef(false);
 
-  // State
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [activePanel, setActivePanel] = useState(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isHost, setIsHost] = useState(false);
-  const [attendeeCount, setAttendeeCount] = useState(1);
-  const [connectionStatus, setConnectionStatus] = useState('connecting');
-  const [playerReady, setPlayerReady] = useState(false);
-  const [wsAttempts, setWsAttempts] = useState(0);
-
-  // Validate required parameters
+  // Initialize player
   useEffect(() => {
-    if (!partyId || !cfid || !userId) {
-      console.warn('Missing watch party parameters:', { partyId, cfid, userId });
-      setConnectionStatus('error');
-    }
-  }, [partyId, cfid, userId]);
+    if (!cfid) return;
 
-  // Initialize Cloudflare Stream SDK and player
-  useEffect(() => {
-    if (!cfid || !iframeRef.current) return;
+    const initPlayer = () => {
+      if (!iframeRef.current) {
+        console.warn('Iframe ref not yet available, retrying...');
+        setTimeout(initPlayer, 100);
+        return;
+      }
 
-    const initializePlayer = () => {
       if (window.Stream) {
-        const streamElement = iframeRef.current;
+        try {
+          // Set the iframe source - initially without controls
+          iframeRef.current.src = `https://iframe.videodelivery.net/${cfid}?controls=false`;
 
-        // Set the full URL for the iframe with controls ENABLED (required for playback control)
-        // We'll hide controls visually for guests using CSS
-        streamElement.src = `https://iframe.videodelivery.net/${cfid}?controls=true`;
-
-        // Initialize the Stream player - window.Stream() returns a player wrapper
-        const player = window.Stream(streamElement);
-
-        // Store the actual player object, not just the element
-        playerRef.current = player || streamElement;
-
-        console.log('🎬 Player object:', playerRef.current);
-        console.log('🎬 Player has play?', typeof playerRef.current?.play === 'function');
-        console.log('🎬 Player has pause?', typeof playerRef.current?.pause === 'function');
-
-        setPlayerReady(true);
-        console.log('✅ Player ready');
+          // Initialize Stream player
+          playerRef.current = window.Stream(iframeRef.current);
+          console.log('✅ Player initialized');
+          setPlayerReady(true);
+        } catch (err) {
+          console.error('Error initializing player:', err);
+        }
+      } else {
+        // Load SDK if not already loaded
+        const script = document.createElement('script');
+        script.src = 'https://embed.videodelivery.net/embed/sdk.latest.js';
+        script.async = true;
+        script.onload = () => {
+          try {
+            iframeRef.current.src = `https://iframe.videodelivery.net/${cfid}?controls=false`;
+            playerRef.current = window.Stream(iframeRef.current);
+            console.log('✅ Player initialized after SDK load');
+            setPlayerReady(true);
+          } catch (err) {
+            console.error('Error initializing player after SDK load:', err);
+          }
+        };
+        script.onerror = () => {
+          console.error('Failed to load Stream SDK');
+        };
+        document.body.appendChild(script);
       }
     };
 
-    // Check if Stream SDK is already loaded
-    if (window.Stream) {
-      initializePlayer();
-    } else {
-      // Load the SDK script
-      const script = document.createElement('script');
-      script.src = 'https://embed.videodelivery.net/embed/sdk.latest.js';
-      script.async = true;
-
-      script.onload = () => {
-        initializePlayer();
-      };
-
-      script.onerror = () => {
-        console.error('Failed to load Cloudflare Stream SDK');
-        setConnectionStatus('error');
-      };
-
-      document.body.appendChild(script);
-
-      return () => {
-        if (document.body.contains(script)) {
-          document.body.removeChild(script);
-        }
-      };
-    }
+    initPlayer();
   }, [cfid]);
 
-  // Helper function to send commands to Cloudflare Stream player
-  const sendPlayerCommand = useCallback((command) => {
-    if (!playerRef.current) {
-      console.error('❌ Player not available for command:', command);
-      return false;
-    }
-
-    try {
-      console.log(`📢 Executing ${command} on player`);
-
-      // Try direct method call first
-      if (typeof playerRef.current[command] === 'function') {
-        const result = playerRef.current[command]();
-        console.log(`✅ ${command} executed, result:`, result);
-        return true;
-      }
-
-      // Fallback: Try accessing video element in iframe
-      console.log('📢 Direct method not available, trying iframe video element');
-      const video = playerRef.current.contentWindow?.document?.querySelector('video');
-      if (video && typeof video[command] === 'function') {
-        video[command]();
-        console.log(`✅ ${command} executed via video element`);
-        return true;
-      }
-
-      console.error(`❌ Could not execute ${command} - no valid API found`);
-      console.log('Available on player:', Object.getOwnPropertyNames(playerRef.current));
-      return false;
-    } catch (err) {
-      console.error(`❌ Error executing ${command}:`, err?.message || err);
-      return false;
-    }
-  }, []);
-
-  // Attach player event listeners
-  const attachPlayerEvents = useCallback(() => {
-    // Note: Cloudflare Stream iframes don't expose play/pause/seek events to parent window
-    // Events are sent via manual controls (manualPlay/manualPause buttons)
-    // and state is shared via WebSocket
-    if (!playerRef.current || !playerReady) return;
-
-    console.log('🎬 Player events configured (synced via WebSocket messages)');
-  }, [playerReady]);
-
+  // Update controls when host status changes
   useEffect(() => {
-    if (!partyId || !cfid || !userId) return;
+    if (!iframeRef.current || !playerReady) return;
 
-    // Don't attempt reconnection if already failed
-    if (wsAttempts > 0) {
-      return;
-    }
+    const controls = isHost ? 'true' : 'false';
+    iframeRef.current.src = `https://iframe.videodelivery.net/${cfid}?controls=${controls}`;
+    console.log(`🎮 Controls updated for ${isHost ? 'host' : 'guest'}: ${controls}`);
+  }, [isHost, playerReady, cfid]);
+
+  // Attach player event listeners (only for host)
+  useEffect(() => {
+    if (!playerReady || !playerRef.current || !isHost) return;
+
+    console.log('🎬 Attaching player event listeners (host)');
+
+    const handlePlay = () => {
+      console.log('▶️ Play event');
+      if (!isSyncingRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'play' }));
+        console.log('📤 Play sent to guests');
+      }
+    };
+
+    const handlePause = () => {
+      console.log('⏸️ Pause event');
+      if (!isSyncingRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'pause' }));
+        console.log('📤 Pause sent to guests');
+      }
+    };
+
+    const handleSeeked = () => {
+      console.log('⏩ Seek event');
+      if (!isSyncingRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(
+          JSON.stringify({
+            type: 'seek',
+            currentTime: playerRef.current.currentTime,
+          })
+        );
+        console.log('📤 Seek sent to guests');
+      }
+    };
+
+    playerRef.current.addEventListener('play', handlePlay);
+    playerRef.current.addEventListener('pause', handlePause);
+    playerRef.current.addEventListener('seeked', handleSeeked);
+
+    return () => {
+      playerRef.current?.removeEventListener('play', handlePlay);
+      playerRef.current?.removeEventListener('pause', handlePause);
+      playerRef.current?.removeEventListener('seeked', handleSeeked);
+    };
+  }, [playerReady, isHost]);
+
+  // WebSocket connection
+  useEffect(() => {
+    if (!partyId || !cfid || !userId || !playerReady) return;
 
     const wsProtocol = process.env.NEXT_PUBLIC_WS_PROTOCOL;
     const wsHost = process.env.NEXT_PUBLIC_WS_HOST;
     const wsUrl = `${wsProtocol}://${wsHost}/ws/watchparty?partyId=${partyId}&cfid=${cfid}&userId=${userId}`;
 
-    console.log('🔌 WS Config:', { wsProtocol, wsHost });
-    console.log('🔌 Connecting to WebSocket:', wsUrl);
-    console.log('🔌 Parameters:', { partyId, cfid, userId });
+    console.log('🔌 Connecting to:', wsUrl);
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
-      console.log('✅ Connected to WebSocket');
+      console.log('✅ WebSocket connected');
       setConnectionStatus('connected');
-      attachPlayerEvents();
     };
 
     wsRef.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
       console.log('📩 WS Message:', data);
 
-      if (!playerRef.current) return;
-
       if (data.type === 'sync') {
-        // Initial sync when joining party
-        const isUserHost = data.hostId === userId;
-        setIsHost(isUserHost);
-        console.log('🎥 Host?', isUserHost);
+        // User just joined
+        const userIsHost = data.hostId === userId;
+        setIsHost(userIsHost);
+        console.log('🎥 Host?', userIsHost);
 
-        setIsSyncing(true);
+        // Apply initial state
+        isSyncingRef.current = true;
         setTimeout(() => {
-          try {
-            if (data.state.isPlaying) {
-              console.log('📍 Sync: Applying play state');
-              sendPlayerCommand('play');
-              setIsPlaying(true);
-            } else {
-              console.log('📍 Sync: Applying pause state');
-              sendPlayerCommand('pause');
-              setIsPlaying(false);
+          if (playerRef.current && data.state) {
+            try {
+              playerRef.current.currentTime = data.state.currentTime || 0;
+              if (data.state.isPlaying) {
+                playerRef.current.play().catch(() => { });
+              } else {
+                playerRef.current.pause().catch(() => { });
+              }
+            } catch (err) {
+              console.error('Error applying sync:', err);
             }
-          } catch (err) {
-            console.error('❌ Error applying sync:', err?.message || err);
           }
-          setIsSyncing(false);
-        }, 500);
+          isSyncingRef.current = false;
+        }, 300);
       }
 
       if (data.type === 'play') {
-        // Host started playing - guest should play
-        console.log('▶️ Guest received play command from host');
-        setIsSyncing(true);
-
-        try {
-          const success = sendPlayerCommand('play');
-          if (success) {
-            console.log('✅ Guest video now playing');
-            setIsPlaying(true);
-          } else {
-            console.error('❌ Failed to send play command to guest player');
-          }
-        } catch (err) {
-          console.error('❌ Exception in guest play handler:', err?.message || err);
-        } finally {
-          setIsSyncing(false);
+        console.log('▶️ Received play command');
+        isSyncingRef.current = true;
+        if (playerRef.current) {
+          playerRef.current.play().catch(() => { });
         }
+        isSyncingRef.current = false;
       }
 
       if (data.type === 'pause') {
-        // Host paused - guest should pause
-        console.log('⏸️ Guest received pause command from host');
-        setIsSyncing(true);
-
-        try {
-          const success = sendPlayerCommand('pause');
-          if (success) {
-            console.log('✅ Guest video now paused');
-            setIsPlaying(false);
-          } else {
-            console.error('❌ Failed to send pause command to guest player');
-          }
-        } catch (err) {
-          console.error('❌ Exception in guest pause handler:', err?.message || err);
-        } finally {
-          setIsSyncing(false);
+        console.log('⏸️ Received pause command');
+        isSyncingRef.current = true;
+        if (playerRef.current) {
+          playerRef.current.pause().catch(() => { });
         }
+        isSyncingRef.current = false;
       }
 
       if (data.type === 'seek') {
-        // Host seeked
-        setIsSyncing(true);
-        try {
+        console.log('⏩ Received seek command');
+        isSyncingRef.current = true;
+        if (playerRef.current) {
           playerRef.current.currentTime = data.currentTime;
-          console.log('⏩ Guest seeked to:', data.currentTime);
-        } catch (err) {
-          console.error('Error seeking:', err);
         }
-        setIsSyncing(false);
+        isSyncingRef.current = false;
       }
 
       if (data.type === 'attendeeCount') {
@@ -258,13 +222,8 @@ const WatchPartyPlayer = () => {
       }
     };
 
-    wsRef.current.onerror = (error) => {
-      setWsAttempts(prev => prev + 1);
-      // Only log once to avoid console spam
-      if (wsAttempts === 0) {
-        console.warn('⚠️ WebSocket connection failed. Video will play without real-time sync.');
-        console.log('Backend may be offline at:', `${wsProtocol}://${wsHost}/ws/watchparty`);
-      }
+    wsRef.current.onerror = () => {
+      console.error('❌ WebSocket error');
       setConnectionStatus('error');
     };
 
@@ -274,68 +233,25 @@ const WatchPartyPlayer = () => {
     };
 
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      if (wsRef.current) wsRef.current.close();
     };
-  }, [partyId, cfid, userId, wsAttempts]);
-
-  // Manual controls (for host only)
-  const manualPlay = () => {
-    if (!isHost) {
-      console.warn('⚠️ Only the host can control playback');
-      return;
-    }
-
-    console.log('▶️ Host initiating play');
-    const success = sendPlayerCommand('play');
-
-    if (success) {
-      setIsPlaying(true);
-      // Send sync message to all other users
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: 'play' }));
-        console.log('📤 Play event sent via WebSocket');
-      }
-    }
-  };
-
-  const manualPause = () => {
-    if (!isHost) {
-      console.warn('⚠️ Only the host can control playback');
-      return;
-    }
-
-    console.log('⏸️ Host initiating pause');
-    const success = sendPlayerCommand('pause');
-
-    if (success) {
-      setIsPlaying(false);
-      // Send sync message to all other users
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: 'pause' }));
-        console.log('📤 Pause event sent via WebSocket');
-      }
-    }
-  };
+  }, [partyId, cfid, userId, playerReady]);
 
   const handleShareParty = () => {
     const shareUrl = `${window.location.origin}/watchparty/play?partyId=${partyId}&cfid=${cfid}`;
     navigator.clipboard.writeText(shareUrl);
-    alert('Watch party link copied to clipboard!');
+    alert('Watch party link copied!');
   };
 
-  if (connectionStatus === 'error') {
+  if (!isHydrated) {
+    return null; // Wait for hydration before rendering
+  }
+
+  if (!partyId || !cfid || !userId) {
     return (
       <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white gap-4">
         <h2 className="text-2xl font-bold">❌ Error</h2>
-        <p className="text-gray-400">Missing watch party parameters or failed to load player</p>
-        <button
-          onClick={() => router.back()}
-          className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition"
-        >
-          Go Back
-        </button>
+        <p className="text-gray-400">Missing watch party parameters</p>
       </div>
     );
   }
@@ -350,16 +266,19 @@ const WatchPartyPlayer = () => {
         ← Back
       </button>
 
-      {/* Connection Status Indicator */}
-      <div className="absolute top-6 right-6 z-20 flex items-center gap-2 px-3 py-2 rounded-full"
+      {/* Connection Status */}
+      <div
+        className="absolute top-6 right-6 z-20 flex items-center gap-2 px-3 py-2 rounded-full"
         style={{
-          backgroundColor: connectionStatus === 'connected' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'
-        }}>
+          backgroundColor:
+            connectionStatus === 'connected' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+        }}
+      >
         <div
           className="w-2 h-2 rounded-full"
           style={{
             backgroundColor: connectionStatus === 'connected' ? '#22c55e' : '#ef4444',
-            animation: connectionStatus === 'connected' ? 'pulse 2s infinite' : 'none'
+            animation: connectionStatus === 'connected' ? 'pulse 2s infinite' : 'none',
           }}
         />
         <span className="text-xs font-medium">
@@ -368,21 +287,22 @@ const WatchPartyPlayer = () => {
       </div>
 
       <div className="relative flex-1 flex flex-col justify-between p-6">
-        {/* Title Bar */}
+        {/* Title */}
         <div className="flex justify-between items-start z-10">
           <div className="invisible" />
           <h2 className="text-sm font-medium opacity-80 uppercase tracking-widest text-center max-w-xs">
             Watch Party
-            {isHost && <span className="ml-2 text-[#e50000] text-xs">👑 HOST</span>}
+            {isHost && <span className="ml-2 text-red-500 text-xs">👑 HOST</span>}
           </h2>
           <button
             onClick={() => setActivePanel(null)}
-            className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
+            className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition"
+          >
             <MdClose size={20} />
           </button>
         </div>
 
-        {/* Video Player Container */}
+        {/* Player Container */}
         <div className="absolute inset-0 flex items-center justify-center z-0">
           <iframe
             ref={iframeRef}
@@ -394,38 +314,14 @@ const WatchPartyPlayer = () => {
           />
         </div>
 
-        {/* Controls */}
+        {/* Bottom Controls */}
         <div className="z-10 flex flex-col gap-6">
-          {/* Manual Controls (Host Only) */}
+          {/* Guest Notice */}
           {!isHost && (
             <div className="px-3 py-2 bg-blue-500/20 border border-blue-500/50 rounded-lg text-xs text-blue-200">
-              👑 Only the host can control playback
+              👑 Only host controls the video
             </div>
           )}
-          <div className="flex gap-2 flex-wrap items-center">
-            <button
-              onClick={manualPlay}
-              disabled={!isHost}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition text-sm ${isHost
-                ? 'bg-white/10 hover:bg-white/20 cursor-pointer'
-                : 'bg-white/5 cursor-not-allowed opacity-50'
-                }`}
-              title={isHost ? 'Play' : 'Only host can play'}
-            >
-              <MdPlayArrow size={18} /> Play
-            </button>
-            <button
-              onClick={manualPause}
-              disabled={!isHost}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition text-sm ${isHost
-                ? 'bg-white/10 hover:bg-white/20 cursor-pointer'
-                : 'bg-white/5 cursor-not-allowed opacity-50'
-                }`}
-              title={isHost ? 'Pause' : 'Only host can pause'}
-            >
-              <MdPause size={18} /> Pause
-            </button>
-          </div>
 
           {/* Action Buttons */}
           <div className="flex items-center gap-4">
@@ -433,29 +329,31 @@ const WatchPartyPlayer = () => {
               <button
                 onClick={handleShareParty}
                 className="p-2 hover:bg-white/10 rounded-lg transition"
-                title="Share watch party link"
+                title="Share watch party"
               >
                 <MdShare size={22} />
               </button>
 
               <button
                 onClick={() => setActivePanel(activePanel === 'attendees' ? null : 'attendees')}
-                className="relative group p-2 hover:bg-white/10 rounded-lg transition"
+                className="relative p-2 hover:bg-white/10 rounded-lg transition"
                 title="View attendees"
               >
                 <MdPerson size={22} />
-                <span className="absolute -top-1 -right-1 bg-[#e50000] text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                   {attendeeCount}
                 </span>
               </button>
 
               <button
                 onClick={() => setActivePanel(activePanel === 'comments' ? null : 'comments')}
-                className="relative group p-2 hover:bg-white/10 rounded-lg transition"
+                className="relative p-2 hover:bg-white/10 rounded-lg transition"
                 title="View comments"
               >
                 <MdMessage size={22} />
-                <span className="absolute -top-1 -right-1 bg-[#e50000] text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
+                <span className="absolute -top-1 -right-1 bg-red-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  0
+                </span>
               </button>
             </div>
           </div>
@@ -469,13 +367,16 @@ const WatchPartyPlayer = () => {
         )}
 
         <style jsx>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-      `}</style>
+          @keyframes pulse {
+            0%, 100% {
+              opacity: 1;
+            }
+            50% {
+              opacity: 0.5;
+            }
+          }
+        `}</style>
       </div>
-
     </div>
   );
 };
