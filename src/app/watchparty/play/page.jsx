@@ -58,11 +58,23 @@ const WatchPartyPlayer = () => {
         // Set the full URL for the iframe with controls disabled
         streamElement.src = `https://iframe.videodelivery.net/${cfid}?controls=false`;
 
-        // Initialize the Stream player
-        playerRef.current = window.Stream(streamElement);
+        // Note: window.Stream() might return the iframe itself or a player wrapper
+        // Let's store the result but also keep reference to the iframe
+        const result = window.Stream(streamElement);
+        
+        playerRef.current = result || streamElement;
+
+        console.log('🎬 Player object:', playerRef.current);
+        console.log('🎬 Player type:', typeof playerRef.current);
+        console.log('🎬 Player is iframe?', playerRef.current === streamElement);
+        console.log('🎬 Player has play?', typeof playerRef.current?.play === 'function');
+        console.log('🎬 Player has pause?', typeof playerRef.current?.pause === 'function');
+        console.log('🎬 All player keys:', Object.keys(playerRef.current || {}));
 
         // Disable native controls and allow only custom controls
-        playerRef.current.controls = false;
+        if (playerRef.current && playerRef.current.controls !== undefined) {
+          playerRef.current.controls = false;
+        }
 
         setPlayerReady(true);
         console.log('✅ Player initialized with controls disabled');
@@ -198,9 +210,28 @@ const WatchPartyPlayer = () => {
       if (data.type === 'play') {
         // Host started playing
         console.log('▶️ Guest received play command');
+        console.log('Player ready?', playerReady);
+        console.log('Player ref:', playerRef.current ? 'exists' : 'null');
+        console.log('Player has play method?', playerRef.current && typeof playerRef.current.play === 'function');
         setIsSyncing(true);
-        if (playerRef.current) {
+
+        try {
+          if (!playerRef.current) {
+            console.error('❌ Player not initialized yet');
+            setIsSyncing(false);
+            return;
+          }
+
+          if (typeof playerRef.current.play !== 'function') {
+            console.error('❌ Player.play is not a function. Available methods:', Object.getOwnPropertyNames(playerRef.current));
+            setIsSyncing(false);
+            return;
+          }
+
           const playResult = playerRef.current.play();
+          console.log('Play result type:', typeof playResult);
+          console.log('Play result is Promise?', playResult instanceof Promise);
+
           if (playResult && typeof playResult.then === 'function') {
             playResult
               .then(() => {
@@ -208,25 +239,47 @@ const WatchPartyPlayer = () => {
                 setIsPlaying(true);
               })
               .catch(err => {
-                console.error('❌ Error playing on guest:', err);
+                console.error('❌ Error playing on guest:', err?.message || err);
               })
               .finally(() => {
                 setIsSyncing(false);
               });
           } else {
-            console.log('✅ Guest video played (no promise)');
+            console.log('✅ Guest video played (no promise returned)');
             setIsPlaying(true);
             setIsSyncing(false);
           }
+        } catch (err) {
+          console.error('❌ Exception when calling play():', err?.message || err);
+          setIsSyncing(false);
         }
       }
 
       if (data.type === 'pause') {
         // Host paused
         console.log('⏸️ Guest received pause command');
+        console.log('Player ready?', playerReady);
+        console.log('Player ref:', playerRef.current ? 'exists' : 'null');
+        console.log('Player has pause method?', playerRef.current && typeof playerRef.current.pause === 'function');
         setIsSyncing(true);
-        if (playerRef.current) {
+
+        try {
+          if (!playerRef.current) {
+            console.error('❌ Player not initialized yet');
+            setIsSyncing(false);
+            return;
+          }
+
+          if (typeof playerRef.current.pause !== 'function') {
+            console.error('❌ Player.pause is not a function. Available methods:', Object.getOwnPropertyNames(playerRef.current));
+            setIsSyncing(false);
+            return;
+          }
+
           const pauseResult = playerRef.current.pause();
+          console.log('Pause result type:', typeof pauseResult);
+          console.log('Pause result is Promise?', pauseResult instanceof Promise);
+
           if (pauseResult && typeof pauseResult.then === 'function') {
             pauseResult
               .then(() => {
@@ -234,16 +287,19 @@ const WatchPartyPlayer = () => {
                 setIsPlaying(false);
               })
               .catch(err => {
-                console.error('❌ Error pausing on guest:', err);
+                console.error('❌ Error pausing on guest:', err?.message || err);
               })
               .finally(() => {
                 setIsSyncing(false);
               });
           } else {
-            console.log('✅ Guest video paused (no promise)');
+            console.log('✅ Guest video paused (no promise returned)');
             setIsPlaying(false);
             setIsSyncing(false);
           }
+        } catch (err) {
+          console.error('❌ Exception when calling pause():', err?.message || err);
+          setIsSyncing(false);
         }
       }
 
