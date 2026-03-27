@@ -25,7 +25,6 @@ export default function MoviePage({ params }) {
   const [error, setError] = useState(null);
   const router = useRouter();
   const url = process.env.NEXT_PUBLIC_BACKEND_URL;
-  console.log('API URL:', `${url}/api/v1/users/movies/${id}`);
 
   useEffect(() => {
     const fetchMovieDetails = async () => {
