@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { MdClose, MdPlayArrow, MdPause, MdShare, MdPerson, MdMessage } from 'react-icons/md';
 import AttendeesPanel from '@/components/AttendesPanel';
@@ -440,4 +440,10 @@ const WatchPartyPlayer = () => {
   );
 };
 
-export default WatchPartyPlayer;
+export default function WatchPartyPage() {
+  return (
+    <Suspense fallback={<div className="w-full h-screen bg-black flex items-center justify-center text-white">Loading...</div>}>
+      <WatchPartyPlayer />
+    </Suspense>
+  );
+}
