@@ -87,7 +87,7 @@ export default function AdminLoginPage() {
           className="flex items-center justify-center gap-3 mb-8 sm:mb-10"
         >
           <Image
-            src="/assets/logo1.png"
+            src="/logo.png"
             alt="Tivess Media"
             width={40}
             height={40}

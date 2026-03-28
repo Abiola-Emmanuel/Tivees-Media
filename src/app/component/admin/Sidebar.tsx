@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { 
-  Home, 
-  Settings, 
-  FileText, 
-  Video, 
-  BarChart3, 
+import {
+  Home,
+  Settings,
+  FileText,
+  Video,
+  BarChart3,
   Cog,
   LogOut,
   Menu,
@@ -54,7 +54,7 @@ export default function Sidebar() {
       <div className="p-4 md:p-6 border-b border-gray-800">
         <Link href="/admin" className="flex items-center space-x-3" onClick={() => setIsMobileMenuOpen(false)}>
           <Image
-            src="/assets/logo1.png"
+            src="logo.png"
             alt="TiveesMedia Logo"
             width={32}
             height={32}
@@ -72,10 +72,10 @@ export default function Sidebar() {
             const Icon = item.icon;
             // Check if pathname matches exactly or starts with the href (for nested routes)
             // Special case for /admin to only match exactly, not all /admin/* routes
-            const isActive = item.href === '/admin' 
+            const isActive = item.href === '/admin'
               ? pathname === item.href
               : pathname === item.href || pathname.startsWith(item.href + '/');
-            
+
             return (
               <li key={item.href}>
                 <Link
@@ -83,14 +83,14 @@ export default function Sidebar() {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`
                     flex items-center space-x-3 px-3 md:px-4 py-2.5 md:py-3 rounded-lg transition-colors
-                    ${isActive 
-                      ? 'bg-[#2a2a2a] text-white' 
+                    ${isActive
+                      ? 'bg-[#2a2a2a] text-white'
                       : 'text-gray-400 hover:text-white hover:bg-[#242424]'
                     }
                   `}
                 >
-                  <Icon 
-                    size={18} 
+                  <Icon
+                    size={18}
                     className={`flex-shrink-0 ${isActive ? 'text-red-500' : 'inherit'}`}
                   />
                   <span className="text-sm font-medium">{item.label}</span>
