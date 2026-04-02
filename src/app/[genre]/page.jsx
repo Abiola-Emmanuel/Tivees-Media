@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import axios from "axios";
+import Image from "next/image";
 import MovieRow from "@/components/MovieRow";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -12,6 +13,7 @@ export default function GenrePage({ params }) {
   const { genre } = use(params);
   const [movies, setMovies] = useState([]);
   const [genreName, setGenreName] = useState("");
+  const [backgroundImage, setBackgroundImage] = useState("");
   const [loading, setLoading] = useState(true);
   const url = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -38,9 +40,12 @@ export default function GenrePage({ params }) {
             (cat) => cat.genre.toLowerCase() === genreFormatted.toLowerCase()
           );
 
-          if (category) {
+          if (category && category.movies.length > 0) {
             setGenreName(category.genre);
             setMovies(category.movies);
+
+            const randomMovie = category.movies[Math.floor(Math.random() * category.movies.length)];
+            setBackgroundImage(randomMovie.posterUrl || randomMovie.backdrop);
           }
         }
       } catch (error) {
@@ -60,10 +65,17 @@ export default function GenrePage({ params }) {
       <Navbar />
 
       <section className="relative h-screen w-full overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 scale-105"
-          style={{ backgroundImage: `url('/action-bg.jpg')` }}
-        />
+        {backgroundImage && (
+          <Image
+            src={backgroundImage}
+            alt={genreName}
+            fill
+            priority
+            className="object-cover brightness-75"
+            sizes="100vw"
+            quality={90}
+          />
+        )}
 
         <div className="absolute inset-0 bg-[#a5191922] bg-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent" />
