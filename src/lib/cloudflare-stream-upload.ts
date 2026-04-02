@@ -102,19 +102,15 @@ async function uploadViaTus(
       const percent =
         bytesTotal > 0 ? Math.min(100, (bytesUploaded / bytesTotal) * 100) : 0;
 
-      console.log("[TUS] onProgress:", percent.toFixed(1) + "%", "bytes:", bytesUploaded, "/", bytesTotal, "videoId:", capturedVideoId);
-
       onProgress?.(percent, bytesUploaded, bytesTotal);
       lastProgress = percent;
       lastProgressTime = Date.now();
 
       // If we've reached 100% or all bytes uploaded and have a video ID, trigger success
       if ((percent >= 99.9 || bytesUploaded >= bytesTotal) && capturedVideoId && !uploadCompleted) {
-        console.log("[TUS] Progress reached completion! percent:", percent, "with video ID:", capturedVideoId);
         // Small delay to ensure Cloudflare has finalized
         setTimeout(() => {
           if (!uploadCompleted) {
-            console.log("[TUS] Triggering success after completion");
             handleUploadComplete();
           }
         }, 1000);

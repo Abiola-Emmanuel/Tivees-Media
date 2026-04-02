@@ -9,6 +9,7 @@ import axios from 'axios'
 const SignIn = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const router = useRouter()
 
@@ -18,32 +19,28 @@ const SignIn = () => {
     e.preventDefault()
 
     if (!email || !password) {
-      alert('Please fill in all fields')
       return
     }
 
-    try {
+    setIsLoading(true)
 
+    try {
       const requestData = {
         email: email,
         password: password,
       }
 
-
       const response = await axios.post(`${url}/users/login`, requestData)
 
       if (response.data.status === 'SUCCESS' && response.data.token) {
         localStorage.setItem('authToken', response.data.token)
-        alert('Login successful!')
         router.push('/main')
-      } else {
-        alert('Login failed: ' + (response.data.message || 'Unknown error'))
       }
     } catch (error) {
       console.error('Login error:', error.response?.data || error.message)
       console.error('Error status:', error.response?.status)
-
-      alert(error.response?.data?.message || 'Login failed. Please try again.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -152,12 +149,13 @@ const SignIn = () => {
             />
 
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className='w-full h-10 sm:h-11 md:h-12 bg-[#E50000] text-white mt-4 sm:mt-5 md:mt-6 rounded-sm text-sm sm:text-base md:text-lg font-medium cursor-pointer'
+              whileHover={{ scale: isLoading ? 1 : 1.02 }}
+              whileTap={{ scale: isLoading ? 1 : 0.98 }}
+              className='w-full h-10 sm:h-11 md:h-12 bg-[#E50000] text-white mt-4 sm:mt-5 md:mt-6 rounded-sm text-sm sm:text-base md:text-lg font-medium cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed'
               type='submit'
+              disabled={isLoading}
             >
-              Log In
+              {isLoading ? 'Logging in...' : 'Log In'}
             </motion.button>
 
             <motion.p

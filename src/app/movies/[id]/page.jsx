@@ -213,7 +213,7 @@ export default function MoviePage({ params }) {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-4 md:p-8 bg-[#141414] text-white font-sans grid grid-cols-1 md:grid-cols-12 gap-8">
+      <div className="w-full  mx-auto p-4 md:p-8 bg-[#141414] text-white font-sans grid grid-cols-1 md:grid-cols-12 gap-8">
 
         <div className="md:col-span-8 space-y-8">
 

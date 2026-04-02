@@ -11,6 +11,7 @@ const SignIn = () => {
   const [email, setEmail] = useState('')
   const [number, setNumber] = useState('')
   const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const router = useRouter()
 
@@ -20,12 +21,12 @@ const SignIn = () => {
     e.preventDefault()
 
     if (!name || !email || !number || !password) {
-      alert('Please fill in all fields')
       return
     }
 
-    try {
+    setIsLoading(true)
 
+    try {
       const response = await axios.post(`${url}/users/signup`, {
         name: name,
         email: email,
@@ -33,20 +34,15 @@ const SignIn = () => {
         password: password,
       })
 
-
       if (response.data.status === 'SUCCESS' && response.data.token) {
         localStorage.setItem('authToken', response.data.token)
         localStorage.setItem('user', JSON.stringify(response.data.user))
-
-        alert('Sign up successful!')
         router.push('/login')
-      } else {
-        alert('Sign up failed: ' + (response.data.message || 'Unknown error'))
       }
     } catch (error) {
       console.error('Sign up error:', error.response?.data || error.message)
-
-      alert(error.response?.data?.message || 'Sign up failed. Please try again.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -195,15 +191,16 @@ const SignIn = () => {
             />
 
             <motion.button
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              className='w-full h-10 sm:h-11 md:h-12 bg-[#E50000] text-white mt-4 sm:mt-5 md:mt-6 rounded-sm text-sm sm:text-base md:text-lg font-medium cursor-pointer'
+              whileHover={{ scale: isLoading ? 1 : 1.02, y: isLoading ? 0 : -2 }}
+              whileTap={{ scale: isLoading ? 1 : 0.98 }}
+              className='w-full h-10 sm:h-11 md:h-12 bg-[#E50000] text-white mt-4 sm:mt-5 md:mt-6 rounded-sm text-sm sm:text-base md:text-lg font-medium cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed'
               type='submit'
+              disabled={isLoading}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.8 }}
             >
-              Sign In
+              {isLoading ? 'Signing up...' : 'Sign Up'}
             </motion.button>
 
             <motion.p
@@ -223,7 +220,7 @@ const SignIn = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 1.0 }}
             >
-              Sign In with Gmail
+              Sign Up with Gmail
             </motion.button>
 
             <motion.p
