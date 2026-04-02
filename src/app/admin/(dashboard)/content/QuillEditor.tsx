@@ -9,7 +9,7 @@ import { stateFromHTML } from 'draft-js-import-html';
 // Dynamically import Editor to avoid SSR issues
 const Editor = dynamic(
   () => import('react-draft-wysiwyg').then((mod) => mod.Editor),
-  { 
+  {
     ssr: false,
     loading: () => (
       <div className="h-full bg-[#0f0f0f] border border-gray-800 rounded-lg flex items-center justify-center">

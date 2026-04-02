@@ -50,6 +50,26 @@ const Player = ({ params }) => {
     return <div className="w-full h-screen bg-black flex items-center justify-center text-white">{error || 'Movie not found'}</div>;
   }
 
+  const hasPlayableVideo = !!(
+    movie?.uid ||
+    movie?.videoUid ||
+    movie?.cfid ||
+    movie?.streamEmbedUrl ||
+    movie?.iframeUrl ||
+    movie?.embedUrl
+  );
+
+  if (!hasPlayableVideo) {
+    return (
+      <div className="w-full h-screen bg-black flex flex-col items-center justify-center px-6 text-center text-white">
+        <h1 className="text-2xl font-semibold">{movie?.title || 'This movie'}</h1>
+        <p className="mt-3 max-w-lg text-white/70">
+          This movie was found, but its video stream is not available yet. Please try again later.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
       <TiveesPlayer movie={movie} />

@@ -48,19 +48,29 @@ export async function POST(request: NextRequest) {
       body: undefined,
     });
 
+    console.log("[TUS POST] Response status:", res.status);
+    console.log("[TUS POST] Response headers:", Object.fromEntries(res.headers));
+
     const responseHeaders = new Headers(CORS_HEADERS);
     responseHeaders.set(
       "Tus-Resumable",
       res.headers.get("Tus-Resumable") ?? "1.0.0",
     );
     const streamMediaId = res.headers.get("stream-media-id");
-    if (streamMediaId) responseHeaders.set("stream-media-id", streamMediaId);
+    console.log("[TUS POST] stream-media-id header:", streamMediaId);
+
+    if (streamMediaId) {
+      responseHeaders.set("stream-media-id", streamMediaId);
+      console.log("[TUS POST] Set stream-media-id in response:", streamMediaId);
+    }
 
     const cloudflareLocation = res.headers.get("Location");
     if (cloudflareLocation) {
       const origin = new URL(request.url).origin;
       const proxyLocation = `${origin}/api/tus-upload/proxy?target=${encodeURIComponent(cloudflareLocation)}`;
       responseHeaders.set("Location", proxyLocation);
+      console.log("[TUS POST] Cloudflare Location:", cloudflareLocation);
+      console.log("[TUS POST] Proxy Location:", proxyLocation);
     }
 
     const body = await res.text();
@@ -70,7 +80,9 @@ export async function POST(request: NextRequest) {
       headers: responseHeaders,
     });
   } catch (err) {
-    console.error("TUS proxy error:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[TUS POST] Error:", message);
+    console.error("[TUS POST] Full error:", err);
     return NextResponse.json(
       { error: "Failed to create TUS upload with Cloudflare" },
       { status: 502, headers: CORS_HEADERS },

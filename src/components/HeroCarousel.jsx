@@ -23,6 +23,9 @@ function HeroCarousel() {
   const url = process.env.NEXT_PUBLIC_BACKEND_URL;
 
   useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
     const fetchActionMovies = async () => {
       try {
         const authToken = localStorage.getItem("authToken");
@@ -31,25 +34,34 @@ function HeroCarousel() {
           {
             headers: {
               Authorization: `Bearer ${authToken}`
-            }
+            },
+            signal: controller.signal
           }
         );
 
-        if (response.data.status === "SUCCESS") {
-
+        if (isMounted && response.data.status === "SUCCESS") {
           const categories = response.data.categories || [];
           const actionMovies = categories.length > 0 ? categories[0].movies : [];
           setHeroMovies(actionMovies);
         }
       } catch (err) {
-        console.error("Error fetching movies:", err);
-        setHeroMovies([]);
+        if (isMounted && err.name !== 'CanceledError') {
+          console.error("Error fetching movies:", err);
+          setHeroMovies([]);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchActionMovies();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
   }, [url]);
 
   const textVariants = {

@@ -241,22 +241,22 @@ export default function ContentPage() {
   // File upload handlers
   const handleFileSelect =
     (type: "poster" | "backdrop" | "mainMovie" | "trailer") =>
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        if (type === "poster" && file.type.startsWith("image/")) {
-          setPosterFile(file);
-          // } else if (type === "backdrop" && file.type.startsWith("image/")) {
-          //   setBackdropFile(file);
-        } else if (type === "mainMovie" && file.type.startsWith("video/")) {
-          setMainMovieFile(file);
-          setUploadedVideoUID(null);
+      (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          if (type === "poster" && file.type.startsWith("image/")) {
+            setPosterFile(file);
+            // } else if (type === "backdrop" && file.type.startsWith("image/")) {
+            //   setBackdropFile(file);
+          } else if (type === "mainMovie" && file.type.startsWith("video/")) {
+            setMainMovieFile(file);
+            setUploadedVideoUID(null);
+          }
+          // } else if (type === "trailer" && file.type.startsWith("video/")) {
+          //   setTrailerFile(file);
+          // }
         }
-        // } else if (type === "trailer" && file.type.startsWith("video/")) {
-        //   setTrailerFile(file);
-        // }
-      }
-    };
+      };
 
   const handleUpload = async () => {
     if (!mainMovieFile) {
@@ -612,22 +612,20 @@ export default function ContentPage() {
         <div className="flex gap-3 mb-6">
           <button
             onClick={() => setActiveView("newMovie")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${
-              activeView === "newMovie"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${activeView === "newMovie"
                 ? "bg-[#1a1a1a] border border-gray-800 text-red-500"
                 : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
-            }`}
+              }`}
           >
             <Plus size={18} />
             <span className="text-sm">New Movie</span>
           </button>
           <button
             onClick={() => setActiveView("movieList")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${
-              activeView === "movieList"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${activeView === "movieList"
                 ? "bg-[#1a1a1a] border border-gray-800 text-white"
                 : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
-            }`}
+              }`}
           >
             <List size={18} />
             <span className="text-sm">Movie List</span>
@@ -1098,7 +1096,7 @@ export default function ContentPage() {
                             <div className="flex items-center gap-3">
                               <div className="relative w-12 h-16 rounded overflow-hidden flex-shrink-0 bg-gray-800 flex items-center justify-center">
                                 {item.posterUrl &&
-                                !failedThumbnails.has(item.posterUrl) ? (
+                                  !failedThumbnails.has(item.posterUrl) ? (
                                   <Image
                                     src={item.posterUrl}
                                     alt={item.title}
@@ -1213,7 +1211,7 @@ export default function ContentPage() {
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className="relative w-12 h-16 rounded overflow-hidden flex-shrink-0 bg-gray-800 flex items-center justify-center">
                             {item.posterUrl &&
-                            !failedThumbnails.has(item.posterUrl) ? (
+                              !failedThumbnails.has(item.posterUrl) ? (
                               <Image
                                 src={item.posterUrl}
                                 alt={item.title}
@@ -1350,42 +1348,38 @@ export default function ContentPage() {
                   </button>
                   <button
                     onClick={() => setCurrentPage(1)}
-                    className={`px-3 py-1.5 rounded text-sm transition-colors ${
-                      currentPage === 1
+                    className={`px-3 py-1.5 rounded text-sm transition-colors ${currentPage === 1
                         ? "bg-blue-600 text-white"
                         : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
-                    }`}
+                      }`}
                   >
                     1
                   </button>
                   <button
                     onClick={() => setCurrentPage(2)}
-                    className={`px-3 py-1.5 rounded text-sm transition-colors ${
-                      currentPage === 2
+                    className={`px-3 py-1.5 rounded text-sm transition-colors ${currentPage === 2
                         ? "bg-blue-600 text-white"
                         : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
-                    }`}
+                      }`}
                   >
                     2
                   </button>
                   <button
                     onClick={() => setCurrentPage(3)}
-                    className={`px-3 py-1.5 rounded text-sm transition-colors ${
-                      currentPage === 3
+                    className={`px-3 py-1.5 rounded text-sm transition-colors ${currentPage === 3
                         ? "bg-blue-600 text-white"
                         : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
-                    }`}
+                      }`}
                   >
                     3
                   </button>
                   <span className="px-2 text-gray-400">...</span>
                   <button
                     onClick={() => setCurrentPage(totalPages)}
-                    className={`px-3 py-1.5 rounded text-sm transition-colors ${
-                      currentPage === totalPages
+                    className={`px-3 py-1.5 rounded text-sm transition-colors ${currentPage === totalPages
                         ? "bg-blue-600 text-white"
                         : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
-                    }`}
+                      }`}
                   >
                     {totalPages}
                   </button>
@@ -1418,7 +1412,7 @@ export default function ContentPage() {
                     className="w-16 bg-[#1a1a1a] border border-gray-800 text-white px-2 py-1.5 rounded text-sm focus:outline-none focus:border-gray-700"
                   />
                   <button
-                    onClick={() => {}}
+                    onClick={() => { }}
                     className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
                   >
                     Go &gt;

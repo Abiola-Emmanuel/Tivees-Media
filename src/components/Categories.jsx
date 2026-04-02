@@ -19,43 +19,56 @@ const CategoriesSection = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchGenres = async () => {
-    try {
-      const response = await axios.get(`${url}/api/v1/users/users-moviesGenre`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`
-        }
-      });
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
 
-      if (response.data.status === 'SUCCESS') {
-        const dynamicCategories = response.data.categories.map((category) => {
-          const genreName = category.genre;
-          const routeName = genreName.toLowerCase().replace(/\s+/g, '-');
-
-          return {
-            name: genreName,
-            image1: `${routeName}-1.png`,
-            image2: `${routeName}-2.png`,
-            image3: `${routeName}-3.png`,
-            image4: `${routeName}-4.png`,
-            description: `Explore ${genreName} content`,
-            route: `/${routeName}`
-          };
+    const fetchGenres = async () => {
+      try {
+        const response = await axios.get(`${url}/api/v1/users/users-moviesGenre`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('authToken')}`
+          },
+          signal: controller.signal
         });
 
-        setCategories(dynamicCategories);
-      }
-    } catch (error) {
-      console.error('Error fetching genres:', error);
-      setCategories([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+        if (isMounted && response.data.status === 'SUCCESS') {
+          const dynamicCategories = response.data.categories.map((category) => {
+            const genreName = category.genre;
+            const routeName = genreName.toLowerCase().replace(/\s+/g, '-');
 
-  useEffect(() => {
+            return {
+              name: genreName,
+              image1: `${routeName}-1.png`,
+              image2: `${routeName}-2.png`,
+              image3: `${routeName}-3.png`,
+              image4: `${routeName}-4.png`,
+              description: `Explore ${genreName} content`,
+              route: `/${routeName}`
+            };
+          });
+
+          setCategories(dynamicCategories);
+        }
+      } catch (error) {
+        if (isMounted && error.name !== 'CanceledError') {
+          console.error('Error fetching genres:', error);
+          setCategories([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
     fetchGenres();
-  }, []);
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [url]);
 
   const containerVariants = {
     hidden: { opacity: 0, y: 50 },

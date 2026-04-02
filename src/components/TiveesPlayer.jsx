@@ -1,16 +1,32 @@
-import React, { useEffect, useState } from 'react';
-import { MdClose, MdPlayArrow, MdPause, MdShare, MdPerson, MdMessage } from 'react-icons/md';
+import React, { useState } from 'react';
+import { MdClose, MdShare, MdPerson, MdMessage } from 'react-icons/md';
 import AttendeesPanel from './AttendesPanel';
 import { useRouter } from 'next/navigation';
 import CommentsPanel from './CommentsPanel';
 
 const TiveesPlayer = ({ movie }) => {
-  const router = useRouter()
-  const [isPlaying, setIsPlaying] = useState(true);
+  const router = useRouter();
   const [activePanel, setActivePanel] = useState(null);
-  const movieId = movie?._id || movie?.id;
 
-  const iframeUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/${movieId}`;
+  // Detailed debugging
+  console.log("========== TIVEESPLAYER DEBUG ==========");
+  console.log("Full movie object:", movie);
+  console.log("Movie keys:", movie ? Object.keys(movie) : "No movie object");
+  console.log("movie.uid:", movie?.uid);
+  console.log("movie.videoUid:", movie?.videoUid);
+  console.log("movie.cfid:", movie?.cfid);
+  console.log("movie.streamEmbedUrl:", movie?.streamEmbedUrl);
+  console.log("movie.iframeUrl:", movie?.iframeUrl);
+  console.log("movie.embedUrl:", movie?.embedUrl);
+  console.log("========================================");
+
+  const videoUid = movie?.uid || movie?.videoUid || movie?.cfid || '';
+  const iframeUrl = videoUid
+    ? `https://iframe.videodelivery.net/${videoUid}?controls=true`
+    : '';
+
+  console.log("[TiveesPlayer] Selected Video UID:", videoUid);
+  console.log("[TiveesPlayer] Iframe URL:", iframeUrl);
 
   return (
     <div className="relative w-full h-screen bg-black flex overflow-hidden font-sans text-white">
@@ -37,14 +53,21 @@ const TiveesPlayer = ({ movie }) => {
 
         {/* Video Player Container */}
         <div className="absolute inset-0 flex items-center justify-center z-0">
-          <iframe
-            src='https://iframe.videodelivery.net/07e0fe08f283b36add7bd6b03c0c65f7'
-            allowFullScreen
-            frameBorder="0"
-            width="100%"
-            height="100%"
-            className="absolute inset-0"
-          />
+          {iframeUrl ? (
+            <iframe
+              src={iframeUrl}
+              allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+              allowFullScreen
+              frameBorder="0"
+              width="100%"
+              height="100%"
+              className="absolute inset-0"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-black text-white/70">
+              Video unavailable for this movie.
+            </div>
+          )}
         </div>
 
         <div className="z-10 flex flex-col gap-6">

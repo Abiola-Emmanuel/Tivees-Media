@@ -66,6 +66,11 @@ async function uploadViaTus(
   const { Upload } = await import("tus-js-client");
 
   let capturedVideoId = "";
+  let uploadCompleted = false;
+  const fileSize = file.size;
+  let lastProgress = 0;
+  let lastProgressTime = Date.now();
+  let inactivityTimeout: NodeJS.Timeout | null = null;
 
   const upload = new Upload(file, {
     endpoint: getTusEndpoint(),
@@ -80,33 +85,64 @@ async function uploadViaTus(
       res: { getHeader?: (name: string) => string | null },
     ) {
       const mediaId = res.getHeader?.("stream-media-id");
-      if (mediaId) capturedVideoId = mediaId;
+      if (mediaId && !capturedVideoId) {
+        console.log("[TUS] Captured video ID from header:", mediaId);
+        capturedVideoId = mediaId;
+      }
     },
     onError(error: unknown) {
       const err =
         error instanceof Error
           ? error
           : new Error(String(error ?? "TUS upload failed"));
+      console.error("[TUS] Upload error:", err);
       onError?.(err);
     },
     onProgress(bytesUploaded: number, bytesTotal: number) {
       const percent =
         bytesTotal > 0 ? Math.min(100, (bytesUploaded / bytesTotal) * 100) : 0;
+
+      console.log("[TUS] onProgress:", percent.toFixed(1) + "%", "bytes:", bytesUploaded, "/", bytesTotal, "videoId:", capturedVideoId);
+
       onProgress?.(percent, bytesUploaded, bytesTotal);
+      lastProgress = percent;
+      lastProgressTime = Date.now();
+
+      // If we've reached 100% or all bytes uploaded and have a video ID, trigger success
+      if ((percent >= 99.9 || bytesUploaded >= bytesTotal) && capturedVideoId && !uploadCompleted) {
+        console.log("[TUS] Progress reached completion! percent:", percent, "with video ID:", capturedVideoId);
+        // Small delay to ensure Cloudflare has finalized
+        setTimeout(() => {
+          if (!uploadCompleted) {
+            console.log("[TUS] Triggering success after completion");
+            handleUploadComplete();
+          }
+        }, 1000);
+      }
     },
     async onSuccess() {
-      const videoId =
-        capturedVideoId || getVideoIdFromProxyUrl(upload.url ?? "") || "";
-      if (!videoId) {
-        onError?.(
-          new Error("TUS success but could not get video ID from upload URL."),
-        );
-        return;
-      }
-
-      onSuccess?.(videoId);
+      console.log("[TUS] onSuccess callback triggered");
+      handleUploadComplete();
     },
   });
+
+  function handleUploadComplete() {
+    if (uploadCompleted) return;
+    uploadCompleted = true;
+
+    console.log("[TUS] Upload completed");
+    console.log("[TUS] Video ID:", capturedVideoId);
+
+    if (!capturedVideoId) {
+      const error = new Error("Upload completed but no video ID was captured. Try uploading again.");
+      console.error("[TUS] Error:", error.message);
+      onError?.(error);
+      return;
+    }
+
+    console.log("[TUS] ✅ Success! Video ID:", capturedVideoId);
+    onSuccess?.(capturedVideoId);
+  }
 
   upload.start();
 
