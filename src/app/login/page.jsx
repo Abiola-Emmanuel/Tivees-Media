@@ -50,6 +50,7 @@ const SignIn = () => {
     try {
       const googleResponse = await axios.post(`${url}/users/googleAuth`, {
         token,
+        id_token: token,
       })
 
       if (googleResponse.data.status === 'SUCCESS' && googleResponse.data.token) {
