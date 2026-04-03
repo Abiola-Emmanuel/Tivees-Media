@@ -545,6 +545,7 @@ const WatchPartyPlayer = () => {
                 onSend={handleSendMessage}
                 currentUserId={userId}
                 connectionStatus={connectionStatus}
+                onClose={() => setActivePanel(null)}
               />
             ) : (
               <AttendeesPanel />

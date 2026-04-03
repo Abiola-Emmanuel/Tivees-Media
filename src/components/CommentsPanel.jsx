@@ -1,4 +1,5 @@
 import { IoMdSend } from 'react-icons/io'
+import { MdClose } from 'react-icons/md'
 
 const getInitials = (name = 'Guest') => {
   return name
@@ -32,15 +33,31 @@ const CommentsPanel = ({
   onDraftChange,
   onSend,
   currentUserId,
-  connectionStatus = 'connecting'
+  connectionStatus = 'connecting',
+  onClose
 }) => {
   return (
     <div className="flex h-full min-h-0 w-full flex-col bg-black text-white">
       <div className="border-b border-white/10 px-4 py-4">
-        <h3 className="text-sm font-semibold text-white">Watch Party Chat</h3>
-        <p className="mt-1 text-xs text-gray-400">
-          {connectionStatus === 'connected' ? 'Chat is live' : 'Connecting chat...'}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Watch Party Chat</h3>
+            <p className="mt-1 text-xs text-gray-400">
+              {connectionStatus === 'connected' ? 'Chat is live' : 'Connecting chat...'}
+            </p>
+          </div>
+
+          {onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
+              aria-label="Close comments panel"
+            >
+              <MdClose size={18} />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 space-y-4 overflow-y-auto px-4 py-4">
