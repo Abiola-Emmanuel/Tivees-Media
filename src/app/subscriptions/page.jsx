@@ -5,11 +5,71 @@ import Navbar from "@/components/Navbar";
 import SubscriptionMobile from "@/components/SubscriptionMobile";
 import FreeTrial from "@/components/FreeTrial";
 import Footer from "@/components/Footer";
+import { usePaystackPayment } from "react-paystack";
+
+const getStoredCustomerEmail = () => {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const storedUser = window.localStorage.getItem("user");
+
+  if (!storedUser) {
+    return "";
+  }
+
+  try {
+    const parsedUser = JSON.parse(storedUser);
+    return parsedUser?.email || "";
+  } catch (error) {
+    console.error("Unable to parse stored user for payment:", error);
+    return "";
+  }
+};
+
+const PayButton = ({ onStatusChange }) => {
+  const customerEmail = getStoredCustomerEmail();
+
+  const config = {
+    reference: new Date().getTime().toString(),
+    email: customerEmail || "user@email.com",
+    amount: 5000 * 100,
+    publicKey:
+      process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
+  };
+
+  const initializePayment = usePaystackPayment(config);
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!config.publicKey) {
+          onStatusChange("Paystack public key is missing in your environment variables.");
+          return;
+        }
+
+        initializePayment(
+          () => {
+            console.log("Payment success");
+            onStatusChange("Payment success");
+          },
+          () => {
+            console.log("Payment closed");
+            onStatusChange("Payment closed");
+          }
+        );
+      }}
+      className="flex-1 bg-red-600 hover:bg-red-700 py-2 sm:py-2.5 md:py-3 rounded-lg transition cursor-pointer text-sm sm:text-base"
+    >
+      Pay Now
+    </button>
+  );
+};
 
 const Subscription = () => {
-
-  const [billing, setBilling] = useState("monthly");
-
+  const [billing] = useState("monthly");
+  const [paymentStatus, setPaymentStatus] = useState("");
 
   const plans = [
     {
@@ -35,49 +95,16 @@ const Subscription = () => {
     },
   ];
 
-  const [activePlan, setActivePlan] = useState('Standard');
-
-  const mobileViewplans = {
-    Basic: {
-      price: "₦1,200/ month",
-      content: "Access to a wide selection of movies and shows, including some new releases.",
-      devices: "Watch on one device simultaneously",
-      family: "No"
-    },
-    Standard: {
-      price: "₦1,700/ month",
-      content: "Access to a wider selection of movies and shows, including most new releases and exclusive content.",
-      devices: "Watch on Two devices simultaneously",
-      family: "5 family members."
-    },
-    Premium: {
-      price: "₦2,000/ month",
-      content: "Access to a widest selection of movies and shows, including all new releases and Offline Viewing.",
-      devices: "Watch on Four devices simultaneously",
-      family: "6 family members."
-    }
-  };
-
-
-  const startSubscription = () => {
-    router.push('/subscriptions');
-  }
-
-
-
-
   return (
     <>
       <div className="w-[95%] mx-auto">
-
         <Navbar />
-
 
         <div className="text-white py-12 sm:py-14 mt-30 md:py-16 px-4 sm:px-6 md:px-10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 sm:mb-10 md:mb-12 gap-6">
             <div>
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2 sm:mb-3">
-                Choose the plan that's right for you
+                Choose the plan that&apos;s right for you
               </h2>
               <p className="text-gray-400 text-sm sm:text-base max-w-xl">
                 Join TiveesMedia and select from our flexible subscription options
@@ -85,33 +112,17 @@ const Subscription = () => {
                 entertainment!
               </p>
             </div>
-
-            <div className="bg-[#111] border border-[#333] rounded-lg p-1 flex self-start md:self-auto">
-              <button
-                onClick={() => setBilling("monthly")}
-                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm transition ${billing === "monthly"
-                  ? "bg-[#1a1a1a] text-white"
-                  : "text-gray-400"
-                  }`}
-              >
-                Monthly
-              </button>
-              <button
-                onClick={() => setBilling("yearly")}
-                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm transition ${billing === "yearly"
-                  ? "bg-[#1a1a1a] text-white"
-                  : "text-gray-400"
-                  }`}
-              >
-                Yearly
-              </button>
-            </div>
           </div>
+
+          {paymentStatus ? (
+            <div className="mb-6 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-200">
+              {paymentStatus}
+            </div>
+          ) : null}
 
           <div className="grid md:grid-cols-3 gap-5 sm:gap-6">
             {plans.map((plan, index) => {
-              const price =
-                billing === "monthly" ? plan.monthly : plan.yearly;
+              const price = billing === "monthly" ? plan.monthly : plan.yearly;
 
               return (
                 <div
@@ -131,22 +142,11 @@ const Subscription = () => {
                       <span className="text-2xl sm:text-3xl font-semibold">
                         ₦{price.toLocaleString()}
                       </span>
-                      <span className="text-gray-400 text-sm ml-1">
-                        /{billing === "monthly" ? "month" : "year"}
-                      </span>
+                      <span className="text-gray-400 text-sm ml-1">/month</span>
                     </div>
 
                     <div className="flex gap-3 sm:gap-4 mt-auto">
-                      <button
-                        onClick={startSubscription}
-                        className="flex-1 bg-black/40 py-2 sm:py-2.5 md:py-3 rounded-lg hover:bg-[#1a1a1a] transition cursor-pointer text-sm sm:text-base">
-                        Start Free Trial
-                      </button>
-                      <button
-                        onClick={startSubscription}
-                        className="flex-1 bg-red-600 hover:bg-red-700 py-2 sm:py-2.5 md:py-3 rounded-lg transition cursor-pointer text-sm sm:text-base">
-                        Choose Plan
-                      </button>
+                      <PayButton onStatusChange={setPaymentStatus} />
                     </div>
                   </div>
                 </div>
@@ -155,17 +155,16 @@ const Subscription = () => {
           </div>
         </div>
 
-        <div className="hidden md:block max-w-7xl mx-auto px-4 py-16  text-white font-sans">
+        <div className="hidden md:block max-w-7xl mx-auto px-4 py-16 text-white font-sans">
           <div className="mb-10 max-w-4xl">
             <h2 className="text-white text-2xl mb-4">Compare our plans and find the right one for you</h2>
             <p className="text-gray-400 text-md">
-              TiveesMedia offers three different plans to fit your needs: Basic, Standard, and Premium. Compare the features of each plan and choose the one that's right for you.
+              TiveesMedia offers three different plans to fit your needs: Basic, Standard, and Premium. Compare the features of each plan and choose the one that&apos;s right for you.
             </p>
           </div>
 
-          <div className="border border-white/10 rounded-3xl  overflow-hidden ">
-
-            <div className="grid grid-cols-4  border-b border-white/10 bg-[#0f0f0f]">
+          <div className="border border-white/10 rounded-3xl overflow-hidden">
+            <div className="grid grid-cols-4 border-b border-white/10 bg-[#0f0f0f]">
               <div className="p-6 font-normal text-xl">Features</div>
               <div className="p-6 font-normal text-xl">Basic</div>
               <div className="p-6 font-normal text-xl flex items-center gap-3">
@@ -211,14 +210,14 @@ const Subscription = () => {
             </div>
 
             <div className="grid grid-cols-4 border-b border-white/10 text-gray-400">
-              <div className="p-6"> Dolby Atmos</div>
+              <div className="p-6">Dolby Atmos</div>
               <div className="p-6">No</div>
               <div className="p-6">Yes</div>
               <div className="p-6">Yes</div>
             </div>
 
             <div className="grid grid-cols-4 border-b border-white/10 text-gray-400">
-              <div className="p-6"> Ad-Free</div>
+              <div className="p-6">Ad-Free</div>
               <div className="p-6">No</div>
               <div className="p-6">Yes</div>
               <div className="p-6">Yes</div>
@@ -237,18 +236,16 @@ const Subscription = () => {
               <div className="p-6">Yes, up to 5 family members</div>
               <div className="p-6">Yes, up to 6 family members</div>
             </div>
-
           </div>
         </div>
 
         <SubscriptionMobile />
-
         <FreeTrial />
       </div>
 
       <Footer />
     </>
-  )
-}
+  );
+};
 
-export default Subscription
+export default Subscription;
