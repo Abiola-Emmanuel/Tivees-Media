@@ -48,10 +48,15 @@ const SignIn = () => {
     setGoogleError('')
 
     try {
-      const googleResponse = await axios.post(`${url}/users/googleAuth`, {
-        token: JSON.stringify(token),
-        id_token: JSON.stringify(token),
-      })
+      const googleResponse = await axios.post(
+        `${url}/users/googleAuth`,
+        { token },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      )
 
       if (googleResponse.data.status === 'SUCCESS' && googleResponse.data.token) {
         localStorage.setItem('authToken', googleResponse.data.token)
