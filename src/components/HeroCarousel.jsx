@@ -15,6 +15,20 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
+const getStoredAuthToken = () => {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+
+  const token = localStorage.getItem('authToken')
+
+  if (typeof token !== 'string') {
+    return ''
+  }
+
+  return token.replace(/^Bearer\s+/i, '').trim()
+}
+
 function HeroCarousel() {
 
   const [heroMovies, setHeroMovies] = useState([]);
@@ -28,7 +42,13 @@ function HeroCarousel() {
 
     const fetchActionMovies = async () => {
       try {
-        const authToken = localStorage.getItem("authToken");
+        const authToken = getStoredAuthToken();
+
+        if (!authToken) {
+          setHeroMovies([]);
+          return;
+        }
+
         const response = await axios.get(
           `${url}/api/v1/users/users-moviesCategory?category=action`,
           {
@@ -153,7 +173,7 @@ function HeroCarousel() {
                       variants={textVariants}
                       className="text-neutral-400 text-sm sm:text-lg md:text-md font-normal hidden md:flex mb-3 sm:mb-4 leading-[1.2]"
                     >
-                      {movie.description}
+                      {/* {movie.description} */}
                     </motion.p>
                   </div>
 

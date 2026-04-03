@@ -8,6 +8,56 @@ import { MdClose, MdShare, MdPerson, MdMessage } from 'react-icons/md';
 import AttendeesPanel from '@/components/AttendesPanel';
 import CommentsPanel from '@/components/CommentsPanel';
 
+const createMessageId = (message = {}) => {
+  return (
+    message.id ||
+    message._id ||
+    message.clientId ||
+    `${message.userId || 'guest'}-${message.createdAt || Date.now()}-${message.text || ''}`
+  )
+}
+
+const normalizeChatMessage = (payload) => {
+  if (!payload) {
+    return null
+  }
+
+  const text = payload.text || payload.message || payload.body || payload.content || ''
+
+  if (!String(text).trim()) {
+    return null
+  }
+
+  return {
+    id: createMessageId(payload),
+    text: String(text).trim(),
+    userId: payload.userId || payload.senderId || payload.user?._id || payload.user?.id || '',
+    userName:
+      payload.userName ||
+      payload.senderName ||
+      payload.name ||
+      payload.user?.name ||
+      payload.user?.fullName ||
+      'Guest',
+    createdAt: payload.createdAt || payload.timestamp || new Date().toISOString(),
+    clientId: payload.clientId || ''
+  }
+}
+
+const mergeMessages = (currentMessages, incomingMessages) => {
+  const map = new Map(currentMessages.map((message) => [message.id, message]))
+
+  incomingMessages.forEach((message) => {
+    if (message?.id) {
+      map.set(message.id, message)
+    }
+  })
+
+  return Array.from(map.values()).sort(
+    (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+  )
+}
+
 const WatchPartyPlayer = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -22,8 +72,11 @@ const WatchPartyPlayer = () => {
   const [attendeeCount, setAttendeeCount] = useState(1);
   const [playerReady, setPlayerReady] = useState(false);
   const [userId, setUserId] = useState(userIdParam || null);
+  const [userName, setUserName] = useState('Guest');
   const [isHydrated, setIsHydrated] = useState(false);
   const [audioActivationRequired, setAudioActivationRequired] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [messageDraft, setMessageDraft] = useState('');
 
   const iframeRef = useRef(null);
   const playerRef = useRef(null);
@@ -36,6 +89,11 @@ const WatchPartyPlayer = () => {
       const userString = localStorage.getItem('user');
       const user = userString ? JSON.parse(userString) : null;
       setUserId(user?._id || null);
+      setUserName(user?.name || user?.fullName || 'Guest');
+    } else {
+      const userString = localStorage.getItem('user');
+      const user = userString ? JSON.parse(userString) : null;
+      setUserName(user?.name || user?.fullName || 'Guest');
     }
     setIsHydrated(true);
   }, []);
@@ -269,6 +327,32 @@ const WatchPartyPlayer = () => {
       if (data.type === 'attendeeCount') {
         setAttendeeCount(data.count);
       }
+
+      if (data.type === 'chat' || data.type === 'message' || data.type === 'comment') {
+        const nextMessage = normalizeChatMessage(data);
+
+        if (nextMessage) {
+          setMessages((currentMessages) => mergeMessages(currentMessages, [nextMessage]));
+        }
+      }
+
+      if (data.type === 'chatHistory' || data.type === 'messages' || data.type === 'comments') {
+        const payloadMessages = Array.isArray(data.messages)
+          ? data.messages
+          : Array.isArray(data.comments)
+            ? data.comments
+            : Array.isArray(data.data)
+              ? data.data
+              : [];
+
+        const normalizedMessages = payloadMessages
+          .map((message) => normalizeChatMessage(message))
+          .filter(Boolean);
+
+        if (normalizedMessages.length > 0) {
+          setMessages((currentMessages) => mergeMessages(currentMessages, normalizedMessages));
+        }
+      }
     };
 
     wsRef.current.onerror = () => {
@@ -306,6 +390,30 @@ const WatchPartyPlayer = () => {
       console.error('Failed to enable guest audio:', err?.name || err, err?.message || '');
     }
   };
+
+  const handleSendMessage = (event) => {
+    event.preventDefault()
+
+    const text = messageDraft.trim()
+
+    if (!text || wsRef.current?.readyState !== WebSocket.OPEN) {
+      return
+    }
+
+    const outgoingMessage = {
+      type: 'chat',
+      clientId: `${userId || 'guest'}-${Date.now()}`,
+      partyId,
+      userId,
+      userName,
+      text,
+      message: text,
+      createdAt: new Date().toISOString()
+    }
+
+    wsRef.current.send(JSON.stringify(outgoingMessage))
+    setMessageDraft('')
+  }
 
   if (!isHydrated) {
     return null;
@@ -420,7 +528,7 @@ const WatchPartyPlayer = () => {
               >
                 <MdMessage size={22} />
                 <span className="absolute -top-1 -right-1 bg-red-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                  0
+                  {messages.length}
                 </span>
               </button>
             </div>
@@ -428,8 +536,19 @@ const WatchPartyPlayer = () => {
         </div>
 
         {activePanel && (
-          <div className="w-80 h-full bg-black border-l border-white/10 flex flex-col animate-in slide-in-from-right duration-300">
-            {activePanel === 'comments' ? <CommentsPanel /> : <AttendeesPanel />}
+          <div className="absolute inset-y-0 right-0 z-30 w-full max-w-sm border-l border-white/10 bg-black/95 shadow-2xl backdrop-blur-md animate-in slide-in-from-right duration-300 pointer-events-auto">
+            {activePanel === 'comments' ? (
+              <CommentsPanel
+                messages={messages}
+                draft={messageDraft}
+                onDraftChange={setMessageDraft}
+                onSend={handleSendMessage}
+                currentUserId={userId}
+                connectionStatus={connectionStatus}
+              />
+            ) : (
+              <AttendeesPanel />
+            )}
           </div>
         )}
 

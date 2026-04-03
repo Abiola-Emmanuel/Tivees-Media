@@ -12,6 +12,20 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import { FaArrowRight } from 'react-icons/fa6';
 
+const getStoredAuthToken = () => {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+
+  const token = localStorage.getItem('authToken')
+
+  if (typeof token !== 'string') {
+    return ''
+  }
+
+  return token.replace(/^Bearer\s+/i, '').trim()
+}
+
 const CategoriesSection = () => {
   const router = useRouter();
   const swiperRef = useRef(null);
@@ -25,12 +39,23 @@ const CategoriesSection = () => {
 
     const fetchGenres = async () => {
       try {
+        const authToken = getStoredAuthToken()
+        console.log('Categories authToken:', authToken)
+
+        if (!authToken) {
+          setCategories([])
+          console.log('no auth token')
+          return
+        }
+
         const response = await axios.get(`${url}/api/v1/users/users-moviesGenre`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('authToken')}`
+            Authorization: `Bearer ${authToken}`
           },
           signal: controller.signal
         });
+
+        console.log('Categories response:', response.data)
 
         if (isMounted && response.data.status === 'SUCCESS') {
           const dynamicCategories = response.data.categories.map((category) => {
@@ -52,6 +77,7 @@ const CategoriesSection = () => {
         }
       } catch (error) {
         if (isMounted && error.name !== 'CanceledError') {
+          console.error('Categories error response:', error.response?.data)
           console.error('Error fetching genres:', error);
           setCategories([]);
         }

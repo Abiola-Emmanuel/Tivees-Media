@@ -1,10 +1,28 @@
 "use client"
 import Image from 'next/image'
+import Script from 'next/script'
 import Footer from '@/components/Footer'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import axios from 'axios'
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+
+const getReadableErrorMessage = (error, fallbackMessage) => {
+  const responseData = error?.response?.data
+
+  if (typeof responseData === 'string') {
+    if (responseData.includes('Internal Server Error')) {
+      return 'The backend Google auth endpoint returned a 500 error. Please check the server logs.'
+    }
+
+    return responseData
+  }
+
+  return responseData?.message || fallbackMessage
+}
 
 const SignIn = () => {
   const [name, setName] = useState('')
@@ -12,13 +30,96 @@ const SignIn = () => {
   const [number, setNumber] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isGoogleReady, setIsGoogleReady] = useState(false)
+  const [googleError, setGoogleError] = useState('')
+  const googleButtonRef = useRef(null)
 
   const router = useRouter()
 
-  const url = 'https://tivess-be-89v3.onrender.com/api/v1'
+  const url = `${API_BASE_URL}/api/v1`
+
+  const handleGoogleResponse = useEffectEvent(async (response) => {
+    const token = response?.credential
+
+    if (!token) {
+      setGoogleError('Google did not return a valid credential. Please try again.')
+      return
+    }
+
+    setIsLoading(true)
+    setGoogleError('')
+
+    try {
+      const googleResponse = await axios.post(
+        `${url}/users/googleAuth`,
+        { token },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      console.log('Google sign-up response:', googleResponse.data)
+
+      if (googleResponse.data.status === 'SUCCESS' && googleResponse.data.token) {
+        localStorage.setItem('authToken', googleResponse.data.token)
+        console.log('Stored authToken after Google sign-up:', localStorage.getItem('authToken'))
+
+        if (googleResponse.data.user) {
+          localStorage.setItem('user', JSON.stringify(googleResponse.data.user))
+        }
+
+        router.push('/main')
+        return
+      }
+
+      setGoogleError(googleResponse.data.message || 'Google sign-up was not completed.')
+    } catch (error) {
+      console.error('Google sign-up error:', error.response?.data || error.message)
+      setGoogleError(getReadableErrorMessage(error, 'Google sign-up failed. Please try again.'))
+    } finally {
+      setIsLoading(false)
+    }
+  })
+
+  useEffect(() => {
+    if (!isGoogleReady || !googleButtonRef.current || typeof window === 'undefined') {
+      return
+    }
+
+    if (!window.google?.accounts?.id) {
+      setGoogleError('Google Sign-In failed to load. Please refresh and try again.')
+      return
+    }
+
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleResponse,
+    })
+
+    googleButtonRef.current.innerHTML = ''
+
+    window.google.accounts.id.renderButton(googleButtonRef.current, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      text: 'signup_with',
+      shape: 'rectangular',
+      width: googleButtonRef.current.offsetWidth || 400,
+    })
+
+    return () => {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.cancel()
+      }
+    }
+  }, [handleGoogleResponse, isGoogleReady])
 
   const handleSignUp = async (e) => {
     e.preventDefault()
+
+    setGoogleError('')
 
     if (!name || !email || !number || !password) {
       return
@@ -34,6 +135,8 @@ const SignIn = () => {
         password: password,
       })
 
+      console.log('Email sign-up response:', response.data)
+
       if (response.data.status === 'SUCCESS' && response.data.token) {
         localStorage.setItem('authToken', response.data.token)
         localStorage.setItem('user', JSON.stringify(response.data.user))
@@ -41,6 +144,9 @@ const SignIn = () => {
       }
     } catch (error) {
       console.error('Sign up error:', error.response?.data || error.message)
+      setGoogleError(
+        getReadableErrorMessage(error, 'Sign up failed. Please check your details and try again.')
+      )
     } finally {
       setIsLoading(false)
     }
@@ -48,6 +154,14 @@ const SignIn = () => {
 
   return (
     <>
+      <Script
+        src="https://accounts.google.com/gsi/client"
+        strategy="afterInteractive"
+        onLoad={() => setIsGoogleReady(true)}
+        onError={() =>
+          setGoogleError('Google Sign-In script could not be loaded. Please try again later.')
+        }
+      />
 
       <div className=' relative'>
 
@@ -212,16 +326,28 @@ const SignIn = () => {
               OR
             </motion.p>
 
-            <motion.button
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              className='w-full h-10 sm:h-11 md:h-12 bg-[#80808066] text-white mt-4 sm:mt-5 md:mt-6 rounded-sm text-sm sm:text-base md:text-lg'
+            <motion.div
+              className='mt-4 sm:mt-5 md:mt-6'
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 1.0 }}
             >
-              Sign Up with Gmail
-            </motion.button>
+              <div
+                ref={googleButtonRef}
+                className='flex min-h-10 sm:min-h-11 md:min-h-12 w-full items-center justify-center overflow-hidden rounded-sm'
+              />
+            </motion.div>
+
+            {googleError ? (
+              <motion.p
+                className='mt-3 text-center text-xs sm:text-sm text-red-400'
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                {googleError}
+              </motion.p>
+            ) : null}
 
             <motion.p
               whileHover={{ scale: 1.05 }}

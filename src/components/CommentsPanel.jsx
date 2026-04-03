@@ -1,49 +1,113 @@
-import { IoMdSend } from "react-icons/io";
+import { IoMdSend } from 'react-icons/io'
 
-const CommentsPanel = () => {
+const getInitials = (name = 'Guest') => {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('')
+}
+
+const formatTime = (value) => {
+  if (!value) {
+    return ''
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  return date.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit'
+  })
+}
+
+const CommentsPanel = ({
+  messages = [],
+  draft = '',
+  onDraftChange,
+  onSend,
+  currentUserId,
+  connectionStatus = 'connecting'
+}) => {
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-white/10 text-center">
-        <h3 className="text-sm font-semibold">Comments</h3>
+    <div className="flex h-full min-h-0 w-full flex-col bg-black text-white">
+      <div className="border-b border-white/10 px-4 py-4">
+        <h3 className="text-sm font-semibold text-white">Watch Party Chat</h3>
+        <p className="mt-1 text-xs text-gray-400">
+          {connectionStatus === 'connected' ? 'Chat is live' : 'Connecting chat...'}
+        </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        <div className="flex gap-3">
-          <div className="w-8 h-8 flex justify-center items-center rounded bg-red-500 flex-shrink-0">
-            :)
+      <div className="flex-1 min-h-0 space-y-4 overflow-y-auto px-4 py-4">
+        {messages.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-center text-sm text-gray-500">
+            No messages yet. Start the conversation.
           </div>
-          <div className="space-y-1">
-            <p className="text-xs font-medium opacity-80">Etieno Udobot</p>
-            <div className="bg-[#1f1f1f] p-3 rounded-xl rounded-tl-none text-xs leading-relaxed">
-              Are y'all seeing this???? I can't believe they let Arthur die in Season 2!!!!
-            </div>
-            <div className="flex gap-2">
-              <span className="bg-white/10 px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1">😲 7</span>
-              <span className="bg-white/10 px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1">😭 25</span>
-            </div>
-          </div>
-        </div>
+        ) : (
+          messages.map((message) => {
+            const isOwnMessage = message.userId && currentUserId && message.userId === currentUserId
 
-        <div className="flex flex-col items-end">
-          <div className="bg-white/20 p-3 rounded-xl rounded-tr-none text-xs max-w-[80%]">
-            I think his death was validated, i feel he has outlived his purpose.
-          </div>
-        </div>
+            return (
+              <div
+                key={message.id}
+                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`flex max-w-[85%] gap-3 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'
+                    }`}
+                >
+                  <div
+                    className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${isOwnMessage ? 'bg-red-600 text-white' : 'bg-white/10 text-gray-200'
+                      }`}
+                  >
+                    {getInitials(message.userName)}
+                  </div>
+
+                  <div className={`space-y-1 ${isOwnMessage ? 'items-end text-right' : 'text-left'}`}>
+                    <div className="flex items-center gap-2 text-[11px] text-gray-400">
+                      <span>{isOwnMessage ? 'You' : message.userName || 'Guest'}</span>
+                      {message.createdAt ? <span>{formatTime(message.createdAt)}</span> : null}
+                    </div>
+                    <div
+                      className={`rounded-2xl px-3 py-2 text-sm leading-relaxed ${isOwnMessage
+                          ? 'rounded-tr-md bg-red-600 text-white'
+                          : 'rounded-tl-md bg-[#1c1c1c] text-gray-100'
+                        }`}
+                    >
+                      {message.text}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        )}
       </div>
 
-      <div className="p-4 border-t border-white/10">
-        <div className="bg-[#141414] border border-white/20 rounded-full px-4 py-2 flex items-center gap-3">
+      <form onSubmit={onSend} className="border-t border-white/10 px-4 py-4">
+        <div className="flex w-full items-center gap-3 rounded-2xl border border-white/15 bg-[#141414] px-4 py-3">
           <input
-            placeholder="Add comment"
-            className="flex-1 bg-transparent text-sm focus:outline-none placeholder:opacity-40"
+            value={draft}
+            onChange={(event) => onDraftChange(event.target.value)}
+            placeholder="Type a message"
+            className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-gray-500"
           />
-          <button>
+          <button
+            type="submit"
+            disabled={!draft.trim() || connectionStatus !== 'connected'}
+            className="rounded-full bg-red-600 p-2 text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
             <IoMdSend />
           </button>
         </div>
-      </div>
+      </form>
     </div>
-  );
-};
+  )
+}
 
-export default CommentsPanel;
+export default CommentsPanel

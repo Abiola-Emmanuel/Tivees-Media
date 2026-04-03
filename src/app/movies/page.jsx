@@ -10,6 +10,28 @@ import { motion } from 'framer-motion'
 import MovieRow from '@/components/MovieRow'
 import { useRouter } from 'next/navigation'
 
+const normalizeMovieCategories = (payload = []) => {
+  if (!Array.isArray(payload)) {
+    return []
+  }
+
+  return payload
+    .map((item) => {
+      const title = item?.category || item?.genre || item?.name || ''
+      const movies = Array.isArray(item?.movies) ? item.movies : []
+
+      if (!title || movies.length === 0) {
+        return null
+      }
+
+      return {
+        category: title,
+        movies
+      }
+    })
+    .filter(Boolean)
+}
+
 const Movies = () => {
   const [movieCategories, setMovieCategories] = useState([])
   const [loading, setLoading] = useState(true)
@@ -25,17 +47,37 @@ const Movies = () => {
     const fetchMoviesByCategory = async () => {
       try {
         const authToken = localStorage.getItem('authToken')
+        const headers = {
+          Authorization: `Bearer ${authToken}`
+        }
+
         const response = await axios.get(`${url}/api/v1/users/users-moviesCategory`, {
-          headers: {
-            Authorization: `Bearer ${authToken}`
-          }
+          headers
         })
 
-        if (response.data.status === 'SUCCESS') {
-          setMovieCategories(response.data.categories)
-        }
-        console.log(response);
+        const normalizedCategories = normalizeMovieCategories(
+          response.data?.categories || response.data?.data?.categories || response.data?.data
+        )
 
+        if (normalizedCategories.length > 0) {
+          setMovieCategories(normalizedCategories)
+          return
+        }
+
+        const fallbackResponse = await axios.get(`${url}/api/v1/users/users-moviesGenre`, {
+          headers
+        })
+
+        const fallbackCategories = normalizeMovieCategories(
+          fallbackResponse.data?.categories ||
+          fallbackResponse.data?.genres ||
+          fallbackResponse.data?.data?.categories ||
+          fallbackResponse.data?.data
+        )
+
+        if (fallbackCategories.length > 0) {
+          setMovieCategories(fallbackCategories)
+        }
       } catch (error) {
         console.error('Error fetching movies by category:', error)
       } finally {
@@ -44,7 +86,7 @@ const Movies = () => {
     }
 
     fetchMoviesByCategory()
-  }, [])
+  }, [url])
 
   const handleSearchChange = (e) => {
     const query = e.target.value
