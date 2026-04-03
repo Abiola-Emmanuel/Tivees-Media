@@ -26,6 +26,17 @@ const getStoredAuthToken = () => {
   return token.replace(/^Bearer\s+/i, '').trim()
 }
 
+const getRandomCategoryImage = (movies = []) => {
+  if (!Array.isArray(movies) || movies.length === 0) {
+    return '/hero1.png'
+  }
+
+  const shuffledMovies = [...movies].sort(() => Math.random() - 0.5)
+  const movieWithImage = shuffledMovies.find((movie) => movie?.posterUrl || movie?.backdrop)
+
+  return movieWithImage?.posterUrl || movieWithImage?.backdrop || '/hero1.png'
+}
+
 const CategoriesSection = () => {
   const router = useRouter();
   const swiperRef = useRef(null);
@@ -64,10 +75,7 @@ const CategoriesSection = () => {
 
             return {
               name: genreName,
-              image1: `${routeName}-1.png`,
-              image2: `${routeName}-2.png`,
-              image3: `${routeName}-3.png`,
-              image4: `${routeName}-4.png`,
+              image: getRandomCategoryImage(category.movies),
               description: `Explore ${genreName} content`,
               route: `/${routeName}`
             };
@@ -205,53 +213,13 @@ const CategoriesSection = () => {
                         transition-all duration-300
                         flex flex-col
                       `}>
-                        {/* Top Row - Two Images */}
-                        <div className="flex w-full h-1/2 overflow-hidden">
-                          <div className="relative w-1/2 overflow-hidden">
-                            <Image
-                              src={`/${category.image1}`}
-                              alt={`${category.name} - top left`}
-                              fill
-                              className="object-cover transition-transform duration-500 group-hover:scale-105"
-
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/30" />
-                          </div>
-                          <div className="relative w-1/2 overflow-hidden">
-                            <Image
-                              src={`/${category.image2}`}
-                              alt={`${category.name} - top right`}
-                              fill
-                              className="object-cover transition-transform duration-500 group-hover:scale-105"
-                              sizes="(max-width: 640px) 50vw, (max-width: 768px) 25vw, (max-width: 1024px) 16.5vw, 12.5vw"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/30" />
-                          </div>
-                        </div>
-
-                        {/* Bottom Row - Two Images */}
-                        <div className="flex w-full h-1/2 overflow-hidden">
-                          <div className="relative w-1/2 overflow-hidden">
-                            <Image
-                              src={`/${category.image3}`}
-                              alt={`${category.name} - bottom left`}
-                              fill
-                              className="object-cover transition-transform duration-500 group-hover:scale-105"
-                              sizes="(max-width: 640px) 50vw, (max-width: 768px) 25vw, (max-width: 1024px) 16.5vw, 12.5vw"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                          </div>
-                          <div className="relative w-1/2 overflow-hidden">
-                            <Image
-                              src={`/${category.image4}`}
-                              alt={`${category.name} - bottom right`}
-                              fill
-                              className="object-cover transition-transform duration-500 group-hover:scale-105"
-                              sizes="(max-width: 640px) 50vw, (max-width: 768px) 25vw, (max-width: 1024px) 16.5vw, 12.5vw"
-                            />
-
-                          </div>
-                        </div>
+                        <Image
+                          src={category.image}
+                          alt={category.name}
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                        />
 
                         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-60 group-hover:opacity-70 transition-opacity duration-300" />
 
