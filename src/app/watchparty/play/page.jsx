@@ -17,10 +17,13 @@ const createMessageId = (message = {}) => {
   )
 }
 
-const normalizeChatMessage = (payload) => {
+const normalizeChatMessage = (payload, options = {}) => {
   if (!payload) {
     return null
   }
+
+  const currentUserId = options.currentUserId || ''
+  const currentUserName = options.currentUserName || 'Guest'
 
   const text = payload.text || payload.message || payload.body || payload.content || ''
 
@@ -28,17 +31,23 @@ const normalizeChatMessage = (payload) => {
     return null
   }
 
+  const resolvedUserId =
+    payload.userId || payload.senderId || payload.user?._id || payload.user?.id || ''
+
+  const resolvedUserName =
+    payload.userName ||
+    payload.senderName ||
+    payload.name ||
+    payload.user?.name ||
+    payload.user?.fullName ||
+    (resolvedUserId && currentUserId && resolvedUserId === currentUserId ? currentUserName : '') ||
+    'Guest'
+
   return {
     id: createMessageId(payload),
     text: String(text).trim(),
-    userId: payload.userId || payload.senderId || payload.user?._id || payload.user?.id || '',
-    userName:
-      payload.userName ||
-      payload.senderName ||
-      payload.name ||
-      payload.user?.name ||
-      payload.user?.fullName ||
-      'Guest',
+    userId: resolvedUserId,
+    userName: resolvedUserName,
     createdAt: payload.createdAt || payload.timestamp || new Date().toISOString(),
     clientId: payload.clientId || ''
   }
@@ -329,7 +338,10 @@ const WatchPartyPlayer = () => {
       }
 
       if (data.type === 'chat' || data.type === 'message' || data.type === 'comment') {
-        const nextMessage = normalizeChatMessage(data);
+        const nextMessage = normalizeChatMessage(data, {
+          currentUserId: userId,
+          currentUserName: userName
+        });
 
         if (nextMessage) {
           setMessages((currentMessages) => mergeMessages(currentMessages, [nextMessage]));
@@ -346,7 +358,12 @@ const WatchPartyPlayer = () => {
               : [];
 
         const normalizedMessages = payloadMessages
-          .map((message) => normalizeChatMessage(message))
+          .map((message) =>
+            normalizeChatMessage(message, {
+              currentUserId: userId,
+              currentUserName: userName
+            })
+          )
           .filter(Boolean);
 
         if (normalizedMessages.length > 0) {
