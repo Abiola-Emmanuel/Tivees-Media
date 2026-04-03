@@ -1,22 +1,112 @@
 "use client"
 import Image from 'next/image'
+import Script from 'next/script'
 import Footer from '@/components/Footer'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import axios from 'axios'
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+
+const getReadableErrorMessage = (error, fallbackMessage) => {
+  const responseData = error?.response?.data
+
+  if (typeof responseData === 'string') {
+    if (responseData.includes('Internal Server Error')) {
+      return 'The backend Google auth endpoint returned a 500 error. Please check the server logs.'
+    }
+
+    return responseData
+  }
+
+  return responseData?.message || fallbackMessage
+}
 
 const SignIn = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isGoogleReady, setIsGoogleReady] = useState(false)
+  const [googleError, setGoogleError] = useState('')
+  const googleButtonRef = useRef(null)
 
   const router = useRouter()
 
-  const url = 'https://tivess-be-89v3.onrender.com/api/v1'
+  const url = `${API_BASE_URL}/api/v1`
+
+  const handleGoogleResponse = useEffectEvent(async (response) => {
+    const id_token = response?.credential
+
+    if (!id_token) {
+      setGoogleError('Google did not return a valid credential. Please try again.')
+      return
+    }
+
+    setIsLoading(true)
+    setGoogleError('')
+
+    try {
+      const googleResponse = await axios.post(`${url}/users/googleAuth`, {
+        id_token,
+      })
+
+      if (googleResponse.data.status === 'SUCCESS' && googleResponse.data.token) {
+        localStorage.setItem('authToken', googleResponse.data.token)
+
+        if (googleResponse.data.user) {
+          localStorage.setItem('user', JSON.stringify(googleResponse.data.user))
+        }
+
+        router.push('/main')
+        return
+      }
+
+      setGoogleError(googleResponse.data.message || 'Google sign-in was not completed.')
+    } catch (error) {
+      console.error('Google login error:', error.response?.data || error.message)
+      setGoogleError(getReadableErrorMessage(error, 'Google sign-in failed. Please try again.'))
+    } finally {
+      setIsLoading(false)
+    }
+  })
+
+  useEffect(() => {
+    if (!isGoogleReady || !googleButtonRef.current || typeof window === 'undefined') {
+      return
+    }
+
+    if (!window.google?.accounts?.id) {
+      setGoogleError('Google Sign-In failed to load. Please refresh and try again.')
+      return
+    }
+
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleResponse,
+    })
+
+    window.google.accounts.id.renderButton(googleButtonRef.current, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      text: 'signin_with',
+      shape: 'rectangular',
+      width: googleButtonRef.current.offsetWidth || 400,
+    })
+
+    return () => {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.cancel()
+      }
+    }
+  }, [isGoogleReady])
 
   const handleLogin = async (e) => {
     e.preventDefault()
+
+    setGoogleError('')
 
     if (!email || !password) {
       return
@@ -39,6 +129,9 @@ const SignIn = () => {
     } catch (error) {
       console.error('Login error:', error.response?.data || error.message)
       console.error('Error status:', error.response?.status)
+      setGoogleError(
+        getReadableErrorMessage(error, 'Login failed. Please check your details and try again.')
+      )
     } finally {
       setIsLoading(false)
     }
@@ -46,6 +139,14 @@ const SignIn = () => {
 
   return (
     <>
+      <Script
+        src="https://accounts.google.com/gsi/client"
+        strategy="afterInteractive"
+        onLoad={() => setIsGoogleReady(true)}
+        onError={() =>
+          setGoogleError('Google Sign-In script could not be loaded. Please try again later.')
+        }
+      />
 
       <div className=' relative'>
 
@@ -165,13 +266,18 @@ const SignIn = () => {
               OR
             </motion.p>
 
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className='w-full h-10 sm:h-11 md:h-12 bg-[#80808066] text-white mt-4 sm:mt-5 md:mt-6 rounded-sm text-sm sm:text-base md:text-lg'
-            >
-              Sign In with Gmail
-            </motion.button>
+            <div className='mt-4 sm:mt-5 md:mt-6'>
+              <div
+                ref={googleButtonRef}
+                className='flex min-h-10 sm:min-h-11 md:min-h-12 w-full items-center justify-center overflow-hidden rounded-sm'
+              />
+            </div>
+
+            {googleError ? (
+              <motion.p className='mt-3 text-center text-xs sm:text-sm text-red-400'>
+                {googleError}
+              </motion.p>
+            ) : null}
 
             <motion.p
               whileHover={{ scale: 1.05 }}
@@ -199,7 +305,7 @@ const SignIn = () => {
             <motion.p
               className='text-neutral-500 text-xs sm:text-sm text-left mt-6'
             >
-              This page is protected by Google reCAPTCHA to ensure you're not a bot.
+              This page is protected by Google reCAPTCHA to ensure you&apos;re not a bot.
             </motion.p>
 
             <motion.p
