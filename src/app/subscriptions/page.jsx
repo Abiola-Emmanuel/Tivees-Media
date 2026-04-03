@@ -8,9 +8,6 @@ import Footer from "@/components/Footer";
 import { usePaystackPayment } from "react-paystack";
 
 const getStoredCustomerEmail = () => {
-  if (typeof window === "undefined") {
-    return "";
-  }
 
   const storedUser = window.localStorage.getItem("user");
 
