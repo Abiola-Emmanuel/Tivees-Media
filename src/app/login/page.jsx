@@ -37,9 +37,9 @@ const SignIn = () => {
   const url = `${API_BASE_URL}/api/v1`
 
   const handleGoogleResponse = useEffectEvent(async (response) => {
-    const id_token = response?.credential
+    const token = response?.credential
 
-    if (!id_token) {
+    if (!token) {
       setGoogleError('Google did not return a valid credential. Please try again.')
       return
     }
@@ -49,7 +49,7 @@ const SignIn = () => {
 
     try {
       const googleResponse = await axios.post(`${url}/users/googleAuth`, {
-        token: id_token,
+        token,
       })
 
       if (googleResponse.data.status === 'SUCCESS' && googleResponse.data.token) {
