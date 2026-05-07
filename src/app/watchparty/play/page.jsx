@@ -94,6 +94,78 @@ const WatchPartyPlayer = () => {
   const isHostRef = useRef(false);
 
   useEffect(() => {
+    if (isHydrated) {
+      startLocalVideo()
+    }
+
+    return () => {
+      if (localStreamRef.current) {
+        localStream.current.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [isHydrated])
+
+  // To store the video streams for the UI
+  const [localStream, setLocalStream] = useState(null);
+  const [remoteStreams, setRemoteStreams] = useState({});
+
+  // To store the technical WebRTC objects
+  const peersRef = useRef({});
+  const localStreamRef = useRef(null);
+
+  // Function to initialize the camera
+  const startLocalVideo = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+      });
+      setLocalStream(stream);
+      localStreamRef.current = stream;
+      return stream;
+    } catch (err) {
+      console.error('Error accessing media devices.', err);
+    }
+  }
+
+  // Peer conection login
+  const createPeerConnection = (targetUserId) => {
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    })
+
+    // Add the local video/audio to this connection
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        pc.addTrack(track, localStreamRef.current);
+      })
+    }
+
+    // Handle incoming video from the other person
+    pc.ontrack = (event) => {
+      setRemoteStreams(prev => ({
+        ...prev,
+        [targetUserId]: event.streams[0]
+      }))
+    }
+
+    // Handle finding a network path (ICE candidates)
+    pc.onicecandidate = (event) => {
+      if (event.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'ice-candidate',
+          candidate: event.candidate,
+          targetUserId //The person we are sending this to
+        }))
+      }
+    }
+
+    // Store it in our registry
+    peersRef.current[targetUserId] = pc;
+    return pc;
+  }
+
+  useEffect(() => {
     if (!userId) {
       const userString = localStorage.getItem('user');
       const user = userString ? JSON.parse(userString) : null;
@@ -289,7 +361,7 @@ const WatchPartyPlayer = () => {
       setConnectionStatus('connected');
     };
 
-    wsRef.current.onmessage = (event) => {
+    wsRef.current.onmessage = async (event) => {
       const data = JSON.parse(event.data);
       console.log('WS Message:', data);
 
@@ -368,6 +440,35 @@ const WatchPartyPlayer = () => {
 
         if (normalizedMessages.length > 0) {
           setMessages((currentMessages) => mergeMessages(currentMessages, normalizedMessages));
+        }
+      }
+
+      // Inside your websocket onmessage handler:
+      if (data.type === 'offer') {
+        const pc = createPeerConnection(data.senderId);
+
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        wsRef.current.send(JSON.stringify({
+          type: 'answer',
+          answer: answer,
+          targetUserId: data.senderId
+        }));
+      }
+
+      if (data.type === 'answer') {
+        const pc = peersRef.current[data.senderId];
+        if (pc) {
+          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        }
+      }
+
+      if (data.type === 'ice-candidate') {
+        const pc = peersRef.current[data.senderId];
+        if (pc) {
+          await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
         }
       }
     };
@@ -471,6 +572,30 @@ const WatchPartyPlayer = () => {
         <span className="text-xs font-medium">
           {connectionStatus === 'connected' ? 'Live' : 'Connecting...'}
         </span>
+
+        {/* Local Video Preview */}
+        {
+          localStream && (
+            <video
+              autoPlay
+              muted
+              ref={(el) => { if (el) el.srcObject = localStream }}
+              className="w-32 h-24 rounded-lg border-2 border-blue-500"
+            />
+          )
+        }
+
+        {/* Remote Videos */}
+        {
+          Object.entries(remoteStreams).map(([userId, stream]) => (
+            <video
+              key={userId}
+              autoPlay
+              ref={(el) => { if (el) el.srcObject = stream }}
+              className="w-32 h-24 rounded-lg border-2 border-white/20"
+            />
+          ))
+        }
       </div>
 
       <div className="relative flex-1 flex flex-col justify-between p-6">
@@ -582,9 +707,15 @@ const WatchPartyPlayer = () => {
           }
         `}</style>
       </div>
+
+
     </div>
+
+
   );
 };
+
+
 
 export default function WatchPartyPage() {
   return (

@@ -5,17 +5,6 @@ import { MdClose } from 'react-icons/md';
 const TiveesPlayer = ({ movie }) => {
   const router = useRouter();
 
-  // Detailed debugging
-  console.log("========== TIVEESPLAYER DEBUG ==========");
-  console.log("Full movie object:", movie);
-  console.log("Movie keys:", movie ? Object.keys(movie) : "No movie object");
-  console.log("movie.uid:", movie?.uid);
-  console.log("movie.videoUid:", movie?.videoUid);
-  console.log("movie.cfid:", movie?.cfid);
-  console.log("movie.streamEmbedUrl:", movie?.streamEmbedUrl);
-  console.log("movie.iframeUrl:", movie?.iframeUrl);
-  console.log("movie.embedUrl:", movie?.embedUrl);
-  console.log("========================================");
 
   const videoUid = movie?.uid || movie?.videoUid || movie?.cfid || '';
   const iframeUrl = videoUid
