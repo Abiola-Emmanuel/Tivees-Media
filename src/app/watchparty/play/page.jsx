@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { MdClose, MdShare, MdPerson, MdMessage } from 'react-icons/md';
+import { MdClose, MdShare, MdPerson, MdMessage, MdVideocam, MdVideocamOff } from 'react-icons/md';
 import AttendeesPanel from '@/components/AttendesPanel';
 import CommentsPanel from '@/components/CommentsPanel';
 
@@ -67,6 +67,10 @@ const mergeMessages = (currentMessages, incomingMessages) => {
   )
 }
 
+const getSocketUserId = (payload = {}) => {
+  return payload.senderId || payload.userId || payload.fromUserId || payload.from || payload.participantId || ''
+}
+
 const WatchPartyPlayer = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -86,6 +90,8 @@ const WatchPartyPlayer = () => {
   const [audioActivationRequired, setAudioActivationRequired] = useState(false);
   const [messages, setMessages] = useState([]);
   const [messageDraft, setMessageDraft] = useState('');
+  const [isCameraEnabled, setIsCameraEnabled] = useState(false);
+  const [cameraError, setCameraError] = useState('');
 
   const iframeRef = useRef(null);
   const playerRef = useRef(null);
@@ -112,24 +118,67 @@ const WatchPartyPlayer = () => {
   // To store the technical WebRTC objects
   const peersRef = useRef({});
   const localStreamRef = useRef(null);
+  const pendingIceCandidatesRef = useRef({});
+
+  const sendSocketMessage = (message) => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+
+    wsRef.current.send(JSON.stringify(message));
+    return true;
+  };
+
+  const announceCameraReady = () => {
+    sendSocketMessage({
+      type: 'camera-ready',
+      userId,
+      partyId
+    });
+  };
 
   // Function to initialize the camera
   const startLocalVideo = async () => {
     try {
+      setCameraError('');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true
       });
       setLocalStream(stream);
       localStreamRef.current = stream;
+      setIsCameraEnabled(true);
+
+      Object.values(peersRef.current).forEach((pc) => {
+        stream.getTracks().forEach((track) => {
+          const alreadyAdded = pc.getSenders().some((sender) => sender.track === track);
+          if (!alreadyAdded) {
+            pc.addTrack(track, stream);
+          }
+        });
+      });
+
+      announceCameraReady();
+
+      Object.keys(peersRef.current).forEach((targetUserId) => {
+        createOfferForPeer(targetUserId).catch((err) => {
+          console.error('Failed to renegotiate WebRTC stream:', err?.name || err, err?.message || '');
+        });
+      });
       return stream;
     } catch (err) {
       console.error('Error accessing media devices.', err);
+      setCameraError('Camera unavailable');
+      setIsCameraEnabled(false);
     }
   }
 
   // Peer conection login
   const createPeerConnection = (targetUserId) => {
+    if (peersRef.current[targetUserId]) {
+      return peersRef.current[targetUserId];
+    }
+
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     })
@@ -155,18 +204,67 @@ const WatchPartyPlayer = () => {
 
     // Handle finding a network path (ICE candidates)
     pc.onicecandidate = (event) => {
-      if (event.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
+      if (event.candidate) {
+        sendSocketMessage({
           type: 'ice-candidate',
           candidate: event.candidate,
           targetUserId //The person we are sending this to
-        }))
+        })
+      }
+    }
+
+    pc.onconnectionstatechange = () => {
+      if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) {
+        setRemoteStreams(prev => {
+          const nextStreams = { ...prev };
+          delete nextStreams[targetUserId];
+          return nextStreams;
+        });
       }
     }
 
     // Store it in our registry
     peersRef.current[targetUserId] = pc;
     return pc;
+  }
+
+  const flushPendingIceCandidates = async (targetUserId) => {
+    const pc = peersRef.current[targetUserId];
+    const candidates = pendingIceCandidatesRef.current[targetUserId] || [];
+
+    if (!pc || !pc.remoteDescription || candidates.length === 0) {
+      return;
+    }
+
+    pendingIceCandidatesRef.current[targetUserId] = [];
+
+    for (const candidate of candidates) {
+      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+  }
+
+  const createOfferForPeer = async (targetUserId) => {
+    if (!targetUserId || targetUserId === userId || !localStreamRef.current) {
+      return;
+    }
+
+    const pc = createPeerConnection(targetUserId);
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    sendSocketMessage({
+      type: 'offer',
+      offer,
+      targetUserId
+    });
+  }
+
+  const shouldCreateOfferForPeer = (targetUserId) => {
+    if (!targetUserId || !userId || targetUserId === userId) {
+      return false;
+    }
+
+    return !peersRef.current[targetUserId];
   }
 
   useEffect(() => {
@@ -363,6 +461,9 @@ const WatchPartyPlayer = () => {
     wsRef.current.onopen = () => {
       console.log('WebSocket connected');
       setConnectionStatus('connected');
+      if (localStreamRef.current) {
+        announceCameraReady();
+      }
     };
 
     wsRef.current.onmessage = async (event) => {
@@ -447,32 +548,109 @@ const WatchPartyPlayer = () => {
         }
       }
 
+      if (
+        data.type === 'camera-ready' ||
+        data.type === 'user-camera-ready' ||
+        data.type === 'user-joined' ||
+        data.type === 'participant-joined'
+      ) {
+        const targetUserId = data.senderId || data.userId || data.participantId;
+
+        if (shouldCreateOfferForPeer(targetUserId)) {
+          createOfferForPeer(targetUserId).catch((err) => {
+            console.error('Failed to create WebRTC offer:', err?.name || err, err?.message || '');
+          });
+        }
+      }
+
+      if (data.type === 'participants' || data.type === 'attendees') {
+        const participants = Array.isArray(data.participants)
+          ? data.participants
+          : Array.isArray(data.attendees)
+            ? data.attendees
+            : Array.isArray(data.users)
+              ? data.users
+              : [];
+
+        participants.forEach((participant) => {
+          const targetUserId =
+            typeof participant === 'string'
+              ? participant
+              : participant.userId || participant._id || participant.id;
+
+          if (shouldCreateOfferForPeer(targetUserId)) {
+            createOfferForPeer(targetUserId).catch((err) => {
+              console.error('Failed to create WebRTC offer:', err?.name || err, err?.message || '');
+            });
+          }
+        });
+      }
+
+      if (data.type === 'camera-off' || data.type === 'user-left' || data.type === 'participant-left') {
+        const targetUserId = data.senderId || data.userId || data.participantId;
+
+        if (targetUserId) {
+          peersRef.current[targetUserId]?.close();
+          delete peersRef.current[targetUserId];
+
+          setRemoteStreams(prev => {
+            const nextStreams = { ...prev };
+            delete nextStreams[targetUserId];
+            return nextStreams;
+          });
+        }
+      }
+
       // Inside your websocket onmessage handler:
       if (data.type === 'offer') {
-        const pc = createPeerConnection(data.senderId);
+        const senderId = getSocketUserId(data);
+        if (!senderId || senderId === userId) return;
+
+        let pc = createPeerConnection(senderId);
+
+        if (pc.signalingState !== 'stable') {
+          const shouldKeepLocalOffer = String(userId) > String(senderId);
+
+          if (shouldKeepLocalOffer) {
+            return;
+          }
+
+          pc.close();
+          delete peersRef.current[senderId];
+          pc = createPeerConnection(senderId);
+        }
 
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        await flushPendingIceCandidates(senderId);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
 
-        wsRef.current.send(JSON.stringify({
+        sendSocketMessage({
           type: 'answer',
           answer: answer,
-          targetUserId: data.senderId
-        }));
+          targetUserId: senderId
+        });
       }
 
       if (data.type === 'answer') {
-        const pc = peersRef.current[data.senderId];
+        const senderId = getSocketUserId(data);
+        const pc = peersRef.current[senderId];
         if (pc) {
           await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          await flushPendingIceCandidates(senderId);
         }
       }
 
       if (data.type === 'ice-candidate') {
-        const pc = peersRef.current[data.senderId];
-        if (pc) {
+        const senderId = getSocketUserId(data);
+        const pc = peersRef.current[senderId];
+        if (pc?.remoteDescription) {
           await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        } else if (senderId) {
+          pendingIceCandidatesRef.current[senderId] = [
+            ...(pendingIceCandidatesRef.current[senderId] || []),
+            data.candidate
+          ];
         }
       }
     };
@@ -489,6 +667,10 @@ const WatchPartyPlayer = () => {
 
     return () => {
       if (wsRef.current) wsRef.current.close();
+      Object.values(peersRef.current).forEach((pc) => pc.close());
+      peersRef.current = {};
+      pendingIceCandidatesRef.current = {};
+      setRemoteStreams({});
     };
   }, [partyId, cfid, userId, playerReady]);
 
@@ -510,6 +692,25 @@ const WatchPartyPlayer = () => {
       setAudioActivationRequired(false);
     } catch (err) {
       console.error('Failed to enable guest audio:', err?.name || err, err?.message || '');
+    }
+  };
+
+  const handleToggleCamera = async () => {
+    if (!localStreamRef.current) {
+      await startLocalVideo();
+      return;
+    }
+
+    const nextEnabled = !isCameraEnabled;
+
+    localStreamRef.current.getVideoTracks().forEach((track) => {
+      track.enabled = nextEnabled;
+    });
+
+    setIsCameraEnabled(nextEnabled);
+
+    if (nextEnabled) {
+      announceCameraReady();
     }
   };
 
@@ -576,30 +777,54 @@ const WatchPartyPlayer = () => {
         <span className="text-xs font-medium">
           {connectionStatus === 'connected' ? 'Live' : 'Connecting...'}
         </span>
+      </div>
 
-        {/* Local Video Preview */}
-        {
-          localStream && (
+      <div className="absolute right-6 top-20 z-20 flex max-w-[calc(100vw-3rem)] flex-col items-end gap-3">
+        <div className="flex items-center gap-2">
+          {cameraError ? (
+            <span className="rounded-full bg-red-500/20 px-3 py-2 text-xs text-red-100">
+              {cameraError}
+            </span>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={handleToggleCamera}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20"
+            title={isCameraEnabled ? 'Turn camera off' : 'Turn camera on'}
+            aria-label={isCameraEnabled ? 'Turn camera off' : 'Turn camera on'}
+          >
+            {isCameraEnabled ? <MdVideocam size={22} /> : <MdVideocamOff size={22} />}
+          </button>
+        </div>
+
+        <div className="grid max-h-[42vh] grid-cols-1 gap-2 overflow-y-auto rounded-2xl bg-black/35 p-2 backdrop-blur-sm sm:grid-cols-2">
+          {localStream ? (
             <video
               autoPlay
               muted
               ref={(el) => { if (el) el.srcObject = localStream }}
-              className="w-32 h-24 rounded-lg border-2 border-blue-500"
+              className={`h-24 w-32 rounded-lg border-2 border-blue-500 bg-black object-cover transition ${isCameraEnabled ? 'opacity-100' : 'opacity-45 grayscale'}`}
             />
-          )
-        }
+          ) : (
+            <button
+              type="button"
+              onClick={handleToggleCamera}
+              className="flex h-24 w-32 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-xs text-white transition hover:bg-white/15"
+            >
+              Start camera
+            </button>
+          )}
 
-        {/* Remote Videos */}
-        {
-          Object.entries(remoteStreams).map(([userId, stream]) => (
+          {Object.entries(remoteStreams).map(([userId, stream]) => (
             <video
               key={userId}
               autoPlay
               ref={(el) => { if (el) el.srcObject = stream }}
-              className="w-32 h-24 rounded-lg border-2 border-white/20"
+              className="h-24 w-32 rounded-lg border-2 border-white/20 bg-black object-cover"
             />
-          ))
-        }
+          ))}
+        </div>
       </div>
 
       <div className="relative flex-1 flex flex-col justify-between p-6">
