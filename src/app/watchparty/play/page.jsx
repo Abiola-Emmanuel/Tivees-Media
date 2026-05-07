@@ -98,6 +98,7 @@ const WatchPartyPlayer = () => {
   const wsRef = useRef(null);
   const isSyncingRef = useRef(false);
   const isHostRef = useRef(false);
+  const hostIdRef = useRef('');
 
   useEffect(() => {
     if (isHydrated) {
@@ -122,10 +123,17 @@ const WatchPartyPlayer = () => {
 
   const sendSocketMessage = (message) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      console.warn('WebRTC/socket message skipped because socket is not open:', message.type);
       return false;
     }
 
     wsRef.current.send(JSON.stringify(message));
+    if (['camera-ready', 'offer', 'answer', 'ice-candidate'].includes(message.type)) {
+      console.log('WebRTC/socket message sent:', message.type, {
+        targetUserId: message.targetUserId || null,
+        userId: message.userId || null
+      });
+    }
     return true;
   };
 
@@ -165,6 +173,13 @@ const WatchPartyPlayer = () => {
           console.error('Failed to renegotiate WebRTC stream:', err?.name || err, err?.message || '');
         });
       });
+
+      if (hostIdRef.current && hostIdRef.current !== userId) {
+        createOfferForPeer(hostIdRef.current).catch((err) => {
+          console.error('Failed to create WebRTC offer for host:', err?.name || err, err?.message || '');
+        });
+      }
+
       return stream;
     } catch (err) {
       console.error('Error accessing media devices.', err);
@@ -182,6 +197,8 @@ const WatchPartyPlayer = () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     })
+
+    console.log('WebRTC peer connection created for', targetUserId);
 
     // Add the local video/audio to this connection
     if (localStreamRef.current) {
@@ -214,6 +231,8 @@ const WatchPartyPlayer = () => {
     }
 
     pc.onconnectionstatechange = () => {
+      console.log('WebRTC connection state for', targetUserId, pc.connectionState);
+
       if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) {
         setRemoteStreams(prev => {
           const nextStreams = { ...prev };
@@ -249,8 +268,14 @@ const WatchPartyPlayer = () => {
     }
 
     const pc = createPeerConnection(targetUserId);
+    if (pc.signalingState !== 'stable') {
+      console.log('WebRTC offer skipped because peer is not stable:', targetUserId, pc.signalingState);
+      return;
+    }
+
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
+    console.log('WebRTC offer created for', targetUserId);
 
     sendSocketMessage({
       type: 'offer',
@@ -472,11 +497,18 @@ const WatchPartyPlayer = () => {
 
       if (data.type === 'sync') {
         const userIsHost = data.hostId === userId;
+        hostIdRef.current = data.hostId || '';
         isHostRef.current = userIsHost;
         setIsHost(userIsHost);
         setPlayerControls(userIsHost);
         setPlayerMuted(false);
         console.log('Host?', userIsHost);
+
+        if (!userIsHost && data.hostId && localStreamRef.current) {
+          createOfferForPeer(data.hostId).catch((err) => {
+            console.error('Failed to create WebRTC offer for host:', err?.name || err, err?.message || '');
+          });
+        }
 
         window.setTimeout(() => {
           if (!playerRef.current || !data.state) return;
@@ -554,7 +586,8 @@ const WatchPartyPlayer = () => {
         data.type === 'user-joined' ||
         data.type === 'participant-joined'
       ) {
-        const targetUserId = data.senderId || data.userId || data.participantId;
+        const targetUserId = getSocketUserId(data);
+        console.log('WebRTC peer discovery message received:', data.type, targetUserId);
 
         if (shouldCreateOfferForPeer(targetUserId)) {
           createOfferForPeer(targetUserId).catch((err) => {
@@ -587,7 +620,7 @@ const WatchPartyPlayer = () => {
       }
 
       if (data.type === 'camera-off' || data.type === 'user-left' || data.type === 'participant-left') {
-        const targetUserId = data.senderId || data.userId || data.participantId;
+        const targetUserId = getSocketUserId(data);
 
         if (targetUserId) {
           peersRef.current[targetUserId]?.close();
@@ -605,6 +638,8 @@ const WatchPartyPlayer = () => {
       if (data.type === 'offer') {
         const senderId = getSocketUserId(data);
         if (!senderId || senderId === userId) return;
+
+        console.log('WebRTC offer received from', senderId);
 
         let pc = createPeerConnection(senderId);
 
@@ -624,6 +659,7 @@ const WatchPartyPlayer = () => {
         await flushPendingIceCandidates(senderId);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
+        console.log('WebRTC answer created for', senderId);
 
         sendSocketMessage({
           type: 'answer',
@@ -636,6 +672,7 @@ const WatchPartyPlayer = () => {
         const senderId = getSocketUserId(data);
         const pc = peersRef.current[senderId];
         if (pc) {
+          console.log('WebRTC answer received from', senderId);
           await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
           await flushPendingIceCandidates(senderId);
         }
@@ -645,6 +682,7 @@ const WatchPartyPlayer = () => {
         const senderId = getSocketUserId(data);
         const pc = peersRef.current[senderId];
         if (pc?.remoteDescription) {
+          console.log('WebRTC ICE candidate received from', senderId);
           await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
         } else if (senderId) {
           pendingIceCandidatesRef.current[senderId] = [
