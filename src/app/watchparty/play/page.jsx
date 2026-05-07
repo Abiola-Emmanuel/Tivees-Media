@@ -225,7 +225,8 @@ const WatchPartyPlayer = () => {
         sendSocketMessage({
           type: 'ice-candidate',
           candidate: event.candidate,
-          targetUserId //The person we are sending this to
+          targetUserId, //The person we are sending this to
+          userId
         })
       }
     }
@@ -280,7 +281,8 @@ const WatchPartyPlayer = () => {
     sendSocketMessage({
       type: 'offer',
       offer,
-      targetUserId
+      targetUserId,
+      userId
     });
   }
 
@@ -664,7 +666,8 @@ const WatchPartyPlayer = () => {
         sendSocketMessage({
           type: 'answer',
           answer: answer,
-          targetUserId: senderId
+          targetUserId: senderId,
+          userId
         });
       }
 
