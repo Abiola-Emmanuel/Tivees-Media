@@ -100,7 +100,7 @@ const WatchPartyPlayer = () => {
 
     return () => {
       if (localStreamRef.current) {
-        localStream.current.getTracks().forEach(track => track.stop())
+        localStreamRef.current.getTracks().forEach(track => track.stop())
       }
     }
   }, [isHydrated])
@@ -143,10 +143,14 @@ const WatchPartyPlayer = () => {
 
     // Handle incoming video from the other person
     pc.ontrack = (event) => {
-      setRemoteStreams(prev => ({
-        ...prev,
-        [targetUserId]: event.streams[0]
-      }))
+      const receivedStream = event.streams[0] || new MediaStream(event.track ? [event.track] : [])
+      if (receivedStream && receivedStream.getTracks().length > 0) {
+        console.log('Remote stream received for', targetUserId, receivedStream)
+        setRemoteStreams(prev => ({
+          ...prev,
+          [targetUserId]: receivedStream
+        }))
+      }
     }
 
     // Handle finding a network path (ICE candidates)
