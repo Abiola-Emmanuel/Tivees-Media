@@ -1,5 +1,5 @@
 "use client"
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FaUser, FaEnvelope, FaPhone, FaComment, FaCheckCircle } from 'react-icons/fa';
 import Navbar from "@/components/Navbar";
@@ -7,9 +7,33 @@ import Image from "next/image";
 import Accordion from '@/components/Accordion';
 import FreeTrial from '@/components/FreeTrial';
 import Footer from '@/components/Footer';
+import { useRouter } from 'next/navigation';
 
 const Support = () => {
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
 
+  useEffect(() => {
+    const authToken = localStorage.getItem('authToken');
+    const userString = localStorage.getItem('user');
+
+    if (!authToken || !userString) {
+      setIsAuthenticated(false);
+      router.push('/sign-in');
+      return;
+    }
+
+    setIsAuthenticated(true);
+  }, [router]);
+
+  if (isAuthenticated === false) {
+    return (
+      <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white gap-4">
+        <h2 className="text-2xl font-bold">Redirecting</h2>
+        <p className="text-gray-400">You need to sign in to access this page</p>
+      </div>
+    );
+  }
 
   return (
     <>

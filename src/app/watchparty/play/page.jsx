@@ -91,7 +91,7 @@ const WatchPartyPlayer = () => {
   const [messages, setMessages] = useState([]);
   const [messageDraft, setMessageDraft] = useState('');
   const [isCameraEnabled, setIsCameraEnabled] = useState(false);
-  const [cameraError, setCameraError] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
 
   const iframeRef = useRef(null);
   const playerRef = useRef(null);
@@ -295,14 +295,23 @@ const WatchPartyPlayer = () => {
   }
 
   useEffect(() => {
+    const authToken = localStorage.getItem('authToken');
+    const userString = localStorage.getItem('user');
+
+    if (!authToken || !userString) {
+      setIsAuthenticated(false);
+      router.push('/sign-in');
+      return;
+    }
+
+    setIsAuthenticated(true);
+
+    const user = JSON.parse(userString);
+
     if (!userId) {
-      const userString = localStorage.getItem('user');
-      const user = userString ? JSON.parse(userString) : null;
       setUserId(user?._id || null);
       setUserName(user?.name || user?.fullName || 'Guest');
     } else {
-      const userString = localStorage.getItem('user');
-      const user = userString ? JSON.parse(userString) : null;
       setUserName(user?.name || user?.fullName || 'Guest');
     }
     setIsHydrated(true);
@@ -387,11 +396,19 @@ const WatchPartyPlayer = () => {
     if (!cfid) return;
 
     let retryTimeout;
+    let retryCount = 0;
+    const maxRetries = 50; // Max 5 seconds of retries
     let sdkScript;
 
     const initializePlayer = () => {
       if (!iframeRef.current) {
-        console.warn('Iframe ref not yet available, retrying...');
+        retryCount++;
+        if (retryCount >= maxRetries) {
+          console.error('Iframe ref not available after maximum retries');
+          setConnectionStatus('error');
+          return;
+        }
+        console.warn(`Iframe ref not yet available, retrying... (${retryCount}/${maxRetries})`);
         retryTimeout = window.setTimeout(initializePlayer, 100);
         return;
       }
@@ -784,6 +801,15 @@ const WatchPartyPlayer = () => {
     return null;
   }
 
+  if (isAuthenticated === false) {
+    return (
+      <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white gap-4">
+        <h2 className="text-2xl font-bold">Redirecting</h2>
+        <p className="text-gray-400">You need to sign in to join the watch party</p>
+      </div>
+    );
+  }
+
   if (!partyId || !cfid || !userId) {
     return (
       <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white gap-4">
@@ -792,6 +818,49 @@ const WatchPartyPlayer = () => {
       </div>
     );
   }
+
+  const cameraCount = (localStream ? 1 : 0) + Object.keys(remoteStreams).length;
+
+  const renderCameraTiles = () => (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {localStream ? (
+        <div className="relative aspect-video overflow-hidden rounded-lg border-2 border-blue-500 bg-black">
+          <video
+            autoPlay
+            muted
+            playsInline
+            ref={(el) => { if (el) el.srcObject = localStream }}
+            className={`h-full w-full bg-black object-cover transition ${isCameraEnabled ? 'opacity-100' : 'opacity-45 grayscale'}`}
+          />
+          <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1 text-[10px] text-white">
+            You
+          </span>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={handleToggleCamera}
+          className="flex aspect-video items-center justify-center rounded-lg border border-white/15 bg-white/10 text-xs text-white transition hover:bg-white/15"
+        >
+          Start camera
+        </button>
+      )}
+
+      {Object.entries(remoteStreams).map(([userId, stream]) => (
+        <div key={userId} className="relative aspect-video overflow-hidden rounded-lg border-2 border-white/20 bg-black">
+          <video
+            autoPlay
+            playsInline
+            ref={(el) => { if (el) el.srcObject = stream }}
+            className="h-full w-full bg-black object-cover"
+          />
+          <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1 text-[10px] text-white">
+            {userId.slice(0, 8)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="relative w-full h-screen bg-black flex overflow-hidden font-sans text-white">
@@ -838,34 +907,6 @@ const WatchPartyPlayer = () => {
           >
             {isCameraEnabled ? <MdVideocam size={22} /> : <MdVideocamOff size={22} />}
           </button>
-        </div>
-
-        <div className="grid max-h-[42vh] grid-cols-1 gap-2 overflow-y-auto rounded-2xl bg-black/35 p-2 backdrop-blur-sm sm:grid-cols-2">
-          {localStream ? (
-            <video
-              autoPlay
-              muted
-              ref={(el) => { if (el) el.srcObject = localStream }}
-              className={`h-24 w-32 rounded-lg border-2 border-blue-500 bg-black object-cover transition ${isCameraEnabled ? 'opacity-100' : 'opacity-45 grayscale'}`}
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={handleToggleCamera}
-              className="flex h-24 w-32 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-xs text-white transition hover:bg-white/15"
-            >
-              Start camera
-            </button>
-          )}
-
-          {Object.entries(remoteStreams).map(([userId, stream]) => (
-            <video
-              key={userId}
-              autoPlay
-              ref={(el) => { if (el) el.srcObject = stream }}
-              className="h-24 w-32 rounded-lg border-2 border-white/20 bg-black object-cover"
-            />
-          ))}
         </div>
       </div>
 
@@ -923,7 +964,9 @@ const WatchPartyPlayer = () => {
                 <MdShare size={22} />
               </button>
 
-              <button
+              {/* Add attendee count later */}
+
+              {/* <button
                 onClick={() => setActivePanel(activePanel === 'attendees' ? null : 'attendees')}
                 className="relative p-2 hover:bg-white/10 rounded-lg transition"
                 title="View attendees"
@@ -931,6 +974,17 @@ const WatchPartyPlayer = () => {
                 <MdPerson size={22} />
                 <span className="absolute -top-1 -right-1 bg-red-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                   {attendeeCount}
+                </span>
+              </button> */}
+
+              <button
+                onClick={() => setActivePanel(activePanel === 'cameras' ? null : 'cameras')}
+                className="relative p-2 hover:bg-white/10 rounded-lg transition"
+                title="View cameras"
+              >
+                <MdVideocam size={22} />
+                <span className="absolute -top-1 -right-1 bg-blue-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  {cameraCount}
                 </span>
               </button>
 
@@ -960,6 +1014,74 @@ const WatchPartyPlayer = () => {
                 connectionStatus={connectionStatus}
                 onClose={() => setActivePanel(null)}
               />
+            ) : activePanel === 'cameras' ? (
+              <div className="flex h-full flex-col p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-white/45">Faces in this room</p>
+                    <h3 className="mt-1 text-lg font-semibold text-white">{cameraCount} camera{cameraCount === 1 ? '' : 's'}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActivePanel(null)}
+                    className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
+                    aria-label="Close cameras"
+                  >
+                    <MdClose size={18} />
+                  </button>
+                </div>
+
+                <div className="mb-4 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleToggleCamera}
+                    className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white transition hover:bg-white/15"
+                  >
+                    {isCameraEnabled ? <MdVideocamOff size={18} /> : <MdVideocam size={18} />}
+                    {isCameraEnabled ? 'Stop camera' : 'Start camera'}
+                  </button>
+                  {cameraError ? (
+                    <span className="text-xs text-red-200">{cameraError}</span>
+                  ) : null}
+                </div>
+
+                <div className="mb-4 rounded-lg border border-white/10 bg-white/[0.04] p-3 text-xs text-white/65">
+                  <div className="flex justify-between gap-3">
+                    <span>Socket</span>
+                    <span className={connectionStatus === 'connected' ? 'text-green-300' : 'text-red-200'}>
+                      {connectionStatus}
+                    </span>
+                  </div>
+                  {connectionStatus === 'error' && (
+                    <div className="mt-2 flex justify-center">
+                      <button
+                        onClick={() => {
+                          setConnectionStatus('connecting');
+                          // Trigger re-initialization by updating a dependency
+                          setPlayerReady(false);
+                          // Force re-run of useEffect by changing a state that affects it
+                          window.location.reload();
+                        }}
+                        className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
+                      >
+                        Retry Connection
+                      </button>
+                    </div>
+                  )}
+                  <div className="mt-1 flex justify-between gap-3">
+                    <span>Known peers</span>
+                    <span>{cameraCount}</span>
+                  </div>
+                  <div className="mt-1 flex justify-between gap-3">
+                    <span>Your peer</span>
+                    <span className="max-w-32 truncate">{userId || 'waiting'}</span>
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                  {renderCameraTiles()}
+                </div>
+              </div>
             ) : (
               <AttendeesPanel />
             )}

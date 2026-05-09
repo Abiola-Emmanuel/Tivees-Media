@@ -128,8 +128,18 @@ const SignIn = () => {
 
       const response = await axios.post(`${url}/users/login`, requestData)
 
+      console.log('Login response:', response.data)
+
       if (response.data.status === 'SUCCESS' && response.data.token) {
         localStorage.setItem('authToken', response.data.token)
+
+        // Store user data if returned in login response (in 'data' field)
+        if (response.data.data) {
+          localStorage.setItem('user', JSON.stringify(response.data.data))
+        } else {
+          console.warn('Login response did not include user data. User information not stored in localStorage.')
+        }
+
         router.push('/main')
       }
     } catch (error) {

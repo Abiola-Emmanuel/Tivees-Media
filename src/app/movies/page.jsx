@@ -39,9 +39,23 @@ const Movies = () => {
   const [searchResults, setSearchResults] = useState([])
   const [showResults, setShowResults] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(null)
   const debounceTimerRef = useRef(null)
   const url = process.env.NEXT_PUBLIC_BACKEND_URL
   const router = useRouter()
+
+  useEffect(() => {
+    const authToken = localStorage.getItem('authToken')
+    const userString = localStorage.getItem('user')
+
+    if (!authToken || !userString) {
+      setIsAuthenticated(false)
+      router.push('/sign-in')
+      return
+    }
+
+    setIsAuthenticated(true)
+  }, [router])
 
   useEffect(() => {
     const fetchMoviesByCategory = async () => {
@@ -136,6 +150,15 @@ const Movies = () => {
     setShowResults(false)
     setSearchResults([])
     router.push(`/movies/${movieId}`)
+  }
+
+  if (isAuthenticated === false) {
+    return (
+      <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white gap-4">
+        <h2 className="text-2xl font-bold">Redirecting</h2>
+        <p className="text-gray-400">You need to sign in to access this page</p>
+      </div>
+    );
   }
 
   return (
