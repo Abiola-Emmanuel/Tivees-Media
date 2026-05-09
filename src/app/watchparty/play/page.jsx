@@ -68,7 +68,25 @@ const mergeMessages = (currentMessages, incomingMessages) => {
 }
 
 const getSocketUserId = (payload = {}) => {
-  return payload.senderId || payload.userId || payload.fromUserId || payload.from || payload.participantId || ''
+  return (
+    payload.senderId ||
+    payload.fromUserId ||
+    payload.from ||
+    payload.fromPeerId ||
+    payload.peerId ||
+    payload.userId ||
+    payload.participantId ||
+    ''
+  )
+}
+
+const getSocketTargetUserId = (payload = {}) => {
+  return payload.targetUserId || payload.receiverId || payload.toUserId || payload.to || payload.targetPeerId || ''
+}
+
+const isMessageForCurrentUser = (payload = {}, currentUserId = '') => {
+  const targetUserId = getSocketTargetUserId(payload)
+  return !targetUserId || !currentUserId || targetUserId === currentUserId
 }
 
 const WatchPartyPlayer = () => {
@@ -128,7 +146,12 @@ const WatchPartyPlayer = () => {
       return false;
     }
 
-    wsRef.current.send(JSON.stringify(message));
+    wsRef.current.send(JSON.stringify({
+      partyId,
+      userId,
+      senderId: userId,
+      ...message
+    }));
     if (['camera-ready', 'offer', 'answer', 'ice-candidate'].includes(message.type)) {
       console.log('WebRTC/socket message sent:', message.type, {
         targetUserId: message.targetUserId || null,
@@ -142,6 +165,7 @@ const WatchPartyPlayer = () => {
     sendSocketMessage({
       type: 'camera-ready',
       userId,
+      senderId: userId,
       partyId
     });
   };
@@ -152,7 +176,7 @@ const WatchPartyPlayer = () => {
       setCameraError('');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
-        audio: true
+        audio: false
       });
       setLocalStream(stream);
       localStreamRef.current = stream;
@@ -227,7 +251,10 @@ const WatchPartyPlayer = () => {
           type: 'ice-candidate',
           candidate: event.candidate,
           targetUserId, //The person we are sending this to
-          userId
+          receiverId: targetUserId,
+          toUserId: targetUserId,
+          userId,
+          senderId: userId
         })
       }
     }
@@ -282,8 +309,12 @@ const WatchPartyPlayer = () => {
     sendSocketMessage({
       type: 'offer',
       offer,
+      sdp: offer.sdp,
       targetUserId,
-      userId
+      receiverId: targetUserId,
+      toUserId: targetUserId,
+      userId,
+      senderId: userId
     });
   }
 
@@ -519,8 +550,18 @@ const WatchPartyPlayer = () => {
 
     wsRef.current.onmessage = async (event) => {
       const data = JSON.parse(event.data);
-      if (['offer', 'answer', 'ice-candidate', 'camera-ready'].includes(data.type)) {
-        console.log('[WebRTC]', data.type, 'from:', data.userId || data.senderId || 'UNKNOWN', '→ target:', data.targetUserId || 'broadcast');
+      const isWebRtcMessage = ['offer', 'answer', 'ice-candidate', 'camera-ready', 'user-camera-ready'].includes(data.type);
+
+      if (isWebRtcMessage && !isMessageForCurrentUser(data, userId)) {
+        console.log('[WebRTC] ignored message for another user:', data.type, {
+          targetUserId: getSocketTargetUserId(data),
+          currentUserId: userId
+        });
+        return;
+      }
+
+      if (isWebRtcMessage) {
+        console.log('[WebRTC]', data.type, 'from:', data.senderId || data.userId || 'UNKNOWN', '-> target:', getSocketTargetUserId(data) || 'broadcast');
       }
       if (data.type === 'sync') {
         const userIsHost = data.hostId === userId;
@@ -668,6 +709,12 @@ const WatchPartyPlayer = () => {
 
         console.log('WebRTC offer received from', senderId);
 
+        const remoteOffer = data.offer || (data.sdp ? { type: 'offer', sdp: data.sdp } : null);
+        if (!remoteOffer) {
+          console.warn('WebRTC offer ignored because SDP is missing:', data);
+          return;
+        }
+
         let pc = createPeerConnection(senderId);
 
         if (pc.signalingState !== 'stable') {
@@ -682,7 +729,7 @@ const WatchPartyPlayer = () => {
           pc = createPeerConnection(senderId);
         }
 
-        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        await pc.setRemoteDescription(new RTCSessionDescription(remoteOffer));
         await flushPendingIceCandidates(senderId);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
@@ -691,8 +738,12 @@ const WatchPartyPlayer = () => {
         sendSocketMessage({
           type: 'answer',
           answer: answer,
+          sdp: answer.sdp,
           targetUserId: senderId,
-          userId
+          receiverId: senderId,
+          toUserId: senderId,
+          userId,
+          senderId: userId
         });
       }
 
@@ -700,8 +751,14 @@ const WatchPartyPlayer = () => {
         const senderId = getSocketUserId(data);
         const pc = peersRef.current[senderId];
         if (pc) {
+          const remoteAnswer = data.answer || (data.sdp ? { type: 'answer', sdp: data.sdp } : null);
+          if (!remoteAnswer) {
+            console.warn('WebRTC answer ignored because SDP is missing:', data);
+            return;
+          }
+
           console.log('WebRTC answer received from', senderId);
-          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          await pc.setRemoteDescription(new RTCSessionDescription(remoteAnswer));
           await flushPendingIceCandidates(senderId);
         }
       }
