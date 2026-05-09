@@ -71,6 +71,14 @@ const getSocketUserId = (payload = {}) => {
   return payload.senderId || payload.userId || payload.fromUserId || payload.from || payload.participantId || ''
 }
 
+const logWatchParty = (...args) => {
+  console.log('[WatchParty]', ...args);
+}
+
+const logWebRtc = (...args) => {
+  console.log('[WebRTC]', ...args);
+}
+
 const WatchPartyPlayer = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -94,6 +102,8 @@ const WatchPartyPlayer = () => {
   const [messageDraft, setMessageDraft] = useState('');
   const [isCameraEnabled, setIsCameraEnabled] = useState(false);
   const [cameraError, setCameraError] = useState('');
+  const [myPeerId, setMyPeerId] = useState('');
+  const [knownPeerCount, setKnownPeerCount] = useState(0);
 
   const iframeRef = useRef(null);
   const playerRef = useRef(null);
@@ -115,20 +125,32 @@ const WatchPartyPlayer = () => {
 
   const sendSocketMessage = (message) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
-      console.warn('WebRTC/socket message skipped because socket is not open:', message.type);
+      console.warn('[WatchParty] Socket send skipped because socket is not open:', {
+        type: message.type,
+        readyState: wsRef.current?.readyState
+      });
       return false;
     }
 
     wsRef.current.send(JSON.stringify(message));
     if (['webrtc-offer', 'webrtc-answer', 'webrtc-ice'].includes(message.type)) {
-      console.log('WebRTC/socket message sent:', message.type, {
-        targetPeerId: message.targetPeerId || null
+      logWebRtc('sent signaling message', {
+        type: message.type,
+        targetPeerId: message.targetPeerId || null,
+        hasSdp: Boolean(message.sdp),
+        hasCandidate: Boolean(message.candidate)
       });
     }
     return true;
   };
 
   const setRemotePeerStream = (remotePeerId, stream, displayUserId) => {
+    logWebRtc('remote stream attached', {
+      remotePeerId,
+      displayUserId,
+      tracks: stream.getTracks().map((track) => `${track.kind}:${track.readyState}`)
+    });
+
     setRemoteStreams((currentStreams) => ({
       ...currentStreams,
       [remotePeerId]: stream
@@ -142,6 +164,11 @@ const WatchPartyPlayer = () => {
 
   const removeRemotePeer = (remotePeerId) => {
     const pc = peersRef.current[remotePeerId];
+    logWebRtc('removing remote peer', {
+      remotePeerId,
+      hadConnection: Boolean(pc),
+      knownPeersBefore: activeRemotePeerIdsRef.current.size
+    });
 
     if (pc) {
       try {
@@ -176,6 +203,10 @@ const WatchPartyPlayer = () => {
     }
 
     pendingIceCandidatesRef.current[remotePeerId] = [];
+    logWebRtc('flushing pending ICE candidates', {
+      remotePeerId,
+      count: candidates.length
+    });
 
     for (const candidate of candidates) {
       try {
@@ -188,8 +219,16 @@ const WatchPartyPlayer = () => {
 
   const createPeerConnection = (remotePeerId, displayUserId) => {
     if (peersRef.current[remotePeerId]) {
+      logWebRtc('reusing peer connection', { remotePeerId });
       return peersRef.current[remotePeerId];
     }
+
+    logWebRtc('creating peer connection', {
+      remotePeerId,
+      displayUserId,
+      hasLocalStream: Boolean(localStreamRef.current),
+      localTracks: localStreamRef.current?.getTracks().map((track) => track.kind) || []
+    });
 
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -207,6 +246,12 @@ const WatchPartyPlayer = () => {
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
+        logWebRtc('local ICE candidate gathered', {
+          remotePeerId,
+          candidateType: event.candidate.type,
+          protocol: event.candidate.protocol
+        });
+
         sendSocketMessage({
           type: 'webrtc-ice',
           targetPeerId: remotePeerId,
@@ -217,6 +262,11 @@ const WatchPartyPlayer = () => {
 
     pc.ontrack = (event) => {
       const receivedStream = event.streams[0] || new MediaStream(event.track ? [event.track] : []);
+      logWebRtc('remote track received', {
+        remotePeerId,
+        trackKind: event.track?.kind,
+        streamTrackCount: receivedStream.getTracks().length
+      });
 
       if (receivedStream && receivedStream.getTracks().length > 0) {
         setRemotePeerStream(remotePeerId, receivedStream, displayUserId);
@@ -224,6 +274,13 @@ const WatchPartyPlayer = () => {
     };
 
     pc.onconnectionstatechange = () => {
+      logWebRtc('connection state changed', {
+        remotePeerId,
+        connectionState: pc.connectionState,
+        iceConnectionState: pc.iceConnectionState,
+        signalingState: pc.signalingState
+      });
+
       if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) {
         setRemoteStreams((currentStreams) => {
           const nextStreams = { ...currentStreams };
@@ -239,16 +296,28 @@ const WatchPartyPlayer = () => {
 
   const offerTo = async (remotePeerId, displayUserId) => {
     if (!localStreamRef.current || !myPeerIdRef.current || remotePeerId === myPeerIdRef.current) {
+      logWebRtc('offer skipped', {
+        remotePeerId,
+        hasLocalStream: Boolean(localStreamRef.current),
+        myPeerId: myPeerIdRef.current,
+        reason: remotePeerId === myPeerIdRef.current ? 'self' : 'missing local stream or peer id'
+      });
       return;
     }
 
     if (peersRef.current[remotePeerId]) {
+      logWebRtc('offer skipped because connection already exists', { remotePeerId });
       return;
     }
 
     const pc = createPeerConnection(remotePeerId, displayUserId);
+    logWebRtc('creating offer', { remotePeerId, signalingState: pc.signalingState });
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
+    logWebRtc('offer local description set', {
+      remotePeerId,
+      sdpLength: pc.localDescription?.sdp?.length || 0
+    });
 
     sendSocketMessage({
       type: 'webrtc-offer',
@@ -259,8 +328,19 @@ const WatchPartyPlayer = () => {
 
   const handleRemoteOffer = async (fromPeerId, sdp, displayUserId) => {
     if (!localStreamRef.current || fromPeerId === myPeerIdRef.current) {
+      logWebRtc('remote offer ignored', {
+        fromPeerId,
+        hasLocalStream: Boolean(localStreamRef.current),
+        myPeerId: myPeerIdRef.current
+      });
       return;
     }
+
+    logWebRtc('remote offer received', {
+      fromPeerId,
+      displayUserId,
+      sdpLength: sdp?.length || 0
+    });
 
     const pc = createPeerConnection(fromPeerId, displayUserId);
     await pc.setRemoteDescription({ type: 'offer', sdp });
@@ -268,6 +348,10 @@ const WatchPartyPlayer = () => {
 
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
+    logWebRtc('answer local description set', {
+      fromPeerId,
+      sdpLength: pc.localDescription?.sdp?.length || 0
+    });
 
     sendSocketMessage({
       type: 'webrtc-answer',
@@ -278,25 +362,50 @@ const WatchPartyPlayer = () => {
 
   const handleRemoteAnswer = async (fromPeerId, sdp) => {
     const pc = peersRef.current[fromPeerId];
-    if (!pc) return;
+    if (!pc) {
+      logWebRtc('remote answer ignored because peer connection is missing', { fromPeerId });
+      return;
+    }
 
+    logWebRtc('remote answer received', {
+      fromPeerId,
+      sdpLength: sdp?.length || 0,
+      signalingState: pc.signalingState
+    });
     await pc.setRemoteDescription({ type: 'answer', sdp });
     await flushPendingIceCandidates(fromPeerId);
   };
 
   const handleRemoteIce = async (fromPeerId, candidate) => {
-    if (!candidate || !fromPeerId) return;
+    if (!candidate || !fromPeerId) {
+      logWebRtc('remote ICE ignored because candidate or peer id is missing', {
+        fromPeerId,
+        hasCandidate: Boolean(candidate)
+      });
+      return;
+    }
 
     const pc = peersRef.current[fromPeerId];
 
     if (pc?.remoteDescription) {
       try {
+        logWebRtc('adding remote ICE candidate', {
+          fromPeerId,
+          candidateType: candidate.type,
+          protocol: candidate.protocol
+        });
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (err) {
         console.warn('ICE add failed', err);
       }
       return;
     }
+
+    logWebRtc('queueing remote ICE candidate until remote description exists', {
+      fromPeerId,
+      candidateType: candidate.type,
+      queuedCount: (pendingIceCandidatesRef.current[fromPeerId] || []).length + 1
+    });
 
     pendingIceCandidatesRef.current[fromPeerId] = [
       ...(pendingIceCandidatesRef.current[fromPeerId] || []),
@@ -305,12 +414,29 @@ const WatchPartyPlayer = () => {
   };
 
   const connectOffersToRemotes = () => {
-    if (!localStreamRef.current || !myPeerIdRef.current) return;
+    if (!localStreamRef.current || !myPeerIdRef.current) {
+      logWebRtc('connectOffersToRemotes skipped', {
+        hasLocalStream: Boolean(localStreamRef.current),
+        myPeerId: myPeerIdRef.current,
+        knownPeerCount: activeRemotePeerIdsRef.current.size
+      });
+      return;
+    }
+
+    logWebRtc('checking remote peers for outbound offers', {
+      myPeerId: myPeerIdRef.current,
+      knownPeerIds: Array.from(activeRemotePeerIdsRef.current)
+    });
 
     activeRemotePeerIdsRef.current.forEach((remotePeerId) => {
       if (remotePeerId > myPeerIdRef.current) {
         offerTo(remotePeerId, peerUserIdsRef.current.get(remotePeerId)).catch((err) => {
           console.error('Failed to create WebRTC offer:', err?.name || err, err?.message || '');
+        });
+      } else {
+        logWebRtc('not offerer for peer based on peer id ordering', {
+          myPeerId: myPeerIdRef.current,
+          remotePeerId
         });
       }
     });
@@ -319,9 +445,13 @@ const WatchPartyPlayer = () => {
   const startLocalVideo = async () => {
     try {
       setCameraError('');
+      logWebRtc('requesting local camera');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
         audio: false
+      });
+      logWebRtc('local camera started', {
+        tracks: stream.getTracks().map((track) => `${track.kind}:${track.readyState}`)
       });
       setLocalStream(stream);
       localStreamRef.current = stream;
@@ -340,13 +470,18 @@ const WatchPartyPlayer = () => {
 
       return stream;
     } catch (err) {
-      console.error('Error accessing media devices.', err);
+      console.error('[WebRTC] Error accessing media devices.', err);
       setCameraError(`Camera: ${err?.message || 'unavailable'}`);
       setIsCameraEnabled(false);
     }
   }
 
   const stopLocalVideo = () => {
+    logWebRtc('stopping local camera', {
+      hadLocalStream: Boolean(localStreamRef.current),
+      peerConnectionCount: Object.keys(peersRef.current).length
+    });
+
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
@@ -563,21 +698,37 @@ const WatchPartyPlayer = () => {
       wsParam ||
       `${wsBase}?partyId=${encodeURIComponent(partyId)}&cfid=${encodeURIComponent(cfid)}&userId=${encodeURIComponent(userId)}`;
 
-    console.log('Connecting to:', wsUrl);
+    logWatchParty('connecting websocket', {
+      wsUrl,
+      partyId,
+      cfid,
+      userId,
+      wsOverrideUsed: Boolean(wsParam),
+      wsBaseOverrideUsed: Boolean(wsBaseParam),
+      envProtocol: wsProtocol,
+      envHost: wsHost
+    });
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
-      console.log('WebSocket connected');
+      logWatchParty('websocket connected', { wsUrl });
       setConnectionStatus('connected');
     };
 
     wsRef.current.onmessage = async (event) => {
       const data = JSON.parse(event.data);
       if (['webrtc-offer', 'webrtc-answer', 'webrtc-ice'].includes(data.type)) {
-        console.log('[WebRTC]', data.type, 'from:', data.userId || data.senderId || 'UNKNOWN', '→ target:', data.targetUserId || 'broadcast');
+        logWebRtc('received signaling message', {
+          type: data.type,
+          fromPeerId: data.fromPeerId,
+          targetPeerId: data.targetPeerId,
+          hasSdp: Boolean(data.sdp),
+          hasCandidate: Boolean(data.candidate)
+        });
       }
       if (data.type === 'sync') {
         myPeerIdRef.current = data.peerId || myPeerIdRef.current;
+        setMyPeerId(myPeerIdRef.current);
         hostIdRef.current = data.hostId || '';
         activeRemotePeerIdsRef.current = new Set();
         peerUserIdsRef.current = new Map();
@@ -587,13 +738,22 @@ const WatchPartyPlayer = () => {
           activeRemotePeerIdsRef.current.add(peer.peerId);
           peerUserIdsRef.current.set(peer.peerId, peer.userId || peer.peerId);
         });
+        setKnownPeerCount(activeRemotePeerIdsRef.current.size);
+        logWatchParty('sync received', {
+          myPeerId: myPeerIdRef.current,
+          hostId: data.hostId,
+          peerCount: activeRemotePeerIdsRef.current.size,
+          peers: Array.from(activeRemotePeerIdsRef.current),
+          hasState: Boolean(data.state),
+          state: data.state || null
+        });
 
         const userIsHost = data.hostId === userId || data.hostId === myPeerIdRef.current;
         isHostRef.current = userIsHost;
         setIsHost(userIsHost);
         setPlayerControls(userIsHost);
         setPlayerMuted(false);
-        console.log('Host?', userIsHost);
+        logWatchParty('host status resolved', { userIsHost, userId, myPeerId: myPeerIdRef.current });
 
         startLocalVideo().then(connectOffersToRemotes);
 
@@ -630,6 +790,7 @@ const WatchPartyPlayer = () => {
       }
 
       if (data.type === 'attendeeCount') {
+        logWatchParty('attendee count update', { count: data.count });
         setAttendeeCount(data.count);
       }
 
@@ -668,9 +829,16 @@ const WatchPartyPlayer = () => {
       }
 
       if (data.type === 'peer-joined') {
+        logWatchParty('peer joined', {
+          peerId: data.peerId,
+          userId: data.userId,
+          myPeerId: myPeerIdRef.current
+        });
+
         if (data.peerId && data.peerId !== myPeerIdRef.current) {
           activeRemotePeerIdsRef.current.add(data.peerId);
           peerUserIdsRef.current.set(data.peerId, data.userId || data.peerId);
+          setKnownPeerCount(activeRemotePeerIdsRef.current.size);
 
           if (localStreamRef.current && data.peerId > myPeerIdRef.current) {
             await offerTo(data.peerId, data.userId);
@@ -680,15 +848,23 @@ const WatchPartyPlayer = () => {
       }
 
       if (data.type === 'peer-left') {
+        logWatchParty('peer left', { peerId: data.peerId });
         removeRemotePeer(data.peerId);
+        setKnownPeerCount(activeRemotePeerIdsRef.current.size);
         return;
       }
 
       if (data.type === 'camera-off' || data.type === 'user-left' || data.type === 'participant-left') {
         const targetUserId = data.peerId || data.fromPeerId || getSocketUserId(data);
+        logWatchParty('participant removal message received', {
+          type: data.type,
+          targetUserId,
+          raw: data
+        });
 
         if (targetUserId) {
           removeRemotePeer(targetUserId);
+          setKnownPeerCount(activeRemotePeerIdsRef.current.size);
         }
       }
 
@@ -709,16 +885,23 @@ const WatchPartyPlayer = () => {
     };
 
     wsRef.current.onerror = () => {
-      console.error('WebSocket error');
+      console.error('[WatchParty] websocket error', { wsUrl });
       setConnectionStatus('error');
     };
 
-    wsRef.current.onclose = () => {
-      console.log('WebSocket closed');
+    wsRef.current.onclose = (event) => {
+      logWatchParty('websocket closed', {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean
+      });
       setConnectionStatus('disconnected');
     };
 
     return () => {
+      logWatchParty('cleaning up websocket and peer connections', {
+        peerConnectionCount: Object.keys(peersRef.current).length
+      });
       if (wsRef.current) wsRef.current.close();
       Object.values(peersRef.current).forEach((pc) => pc.close());
       peersRef.current = {};
@@ -727,6 +910,8 @@ const WatchPartyPlayer = () => {
       pendingIceCandidatesRef.current = {};
       setRemoteStreams({});
       setRemoteLabels({});
+      setMyPeerId('');
+      setKnownPeerCount(0);
     };
   // The socket effect owns one connection lifecycle; helpers above intentionally read refs/state from this render.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1031,6 +1216,23 @@ const WatchPartyPlayer = () => {
                   {cameraError ? (
                     <span className="text-xs text-red-200">{cameraError}</span>
                   ) : null}
+                </div>
+
+                <div className="mb-4 rounded-lg border border-white/10 bg-white/[0.04] p-3 text-xs text-white/65">
+                  <div className="flex justify-between gap-3">
+                    <span>Socket</span>
+                    <span className={connectionStatus === 'connected' ? 'text-green-300' : 'text-red-200'}>
+                      {connectionStatus}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex justify-between gap-3">
+                    <span>Known peers</span>
+                    <span>{knownPeerCount}</span>
+                  </div>
+                  <div className="mt-1 flex justify-between gap-3">
+                    <span>Your peer</span>
+                    <span className="max-w-32 truncate">{myPeerId || 'waiting'}</span>
+                  </div>
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto pr-1">
