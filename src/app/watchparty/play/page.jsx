@@ -92,6 +92,7 @@ const WatchPartyPlayer = () => {
   const [messageDraft, setMessageDraft] = useState('');
   const [isCameraEnabled, setIsCameraEnabled] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const [cameraError, setCameraError] = useState('');
 
   const iframeRef = useRef(null);
   const playerRef = useRef(null);
@@ -397,18 +398,22 @@ const WatchPartyPlayer = () => {
 
     let retryTimeout;
     let retryCount = 0;
-    const maxRetries = 50; // Max 5 seconds of retries
+    const maxRetries = 50;
     let sdkScript;
+    let cancelled = false;
 
     const initializePlayer = () => {
+      if (cancelled) return;
+
       if (!iframeRef.current) {
         retryCount++;
+
         if (retryCount >= maxRetries) {
           console.error('Iframe ref not available after maximum retries');
           setConnectionStatus('error');
           return;
         }
-        console.warn(`Iframe ref not yet available, retrying... (${retryCount}/${maxRetries})`);
+
         retryTimeout = window.setTimeout(initializePlayer, 100);
         return;
       }
@@ -440,6 +445,8 @@ const WatchPartyPlayer = () => {
     }
 
     return () => {
+      cancelled = true;
+
       if (retryTimeout) {
         window.clearTimeout(retryTimeout);
       }
