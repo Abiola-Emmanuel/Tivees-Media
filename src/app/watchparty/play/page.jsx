@@ -796,6 +796,49 @@ const WatchPartyPlayer = () => {
     setMessageDraft('')
   }
 
+  const cameraCount = (localStream ? 1 : 0) + Object.keys(remoteStreams).length;
+
+  const renderCameraTiles = () => (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {localStream ? (
+        <div className="relative aspect-video overflow-hidden rounded-lg border-2 border-blue-500 bg-black">
+          <video
+            autoPlay
+            muted
+            playsInline
+            ref={(el) => { if (el) el.srcObject = localStream }}
+            className={`h-full w-full bg-black object-cover transition ${isCameraEnabled ? 'opacity-100' : 'opacity-45 grayscale'}`}
+          />
+          <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1 text-[10px] text-white">
+            You
+          </span>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={handleToggleCamera}
+          className="flex aspect-video items-center justify-center rounded-lg border border-white/15 bg-white/10 text-xs text-white transition hover:bg-white/15"
+        >
+          Start camera
+        </button>
+      )}
+
+      {Object.entries(remoteStreams).map(([peerId, stream]) => (
+        <div key={peerId} className="relative aspect-video overflow-hidden rounded-lg border-2 border-white/20 bg-black">
+          <video
+            autoPlay
+            playsInline
+            ref={(el) => { if (el) el.srcObject = stream }}
+            className="h-full w-full bg-black object-cover"
+          />
+          <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1 text-[10px] text-white">
+            {remoteLabels[peerId] || peerId.slice(0, 8)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+
   if (!isHydrated) {
     return null;
   }
@@ -854,45 +897,6 @@ const WatchPartyPlayer = () => {
           >
             {isCameraEnabled ? <MdVideocam size={22} /> : <MdVideocamOff size={22} />}
           </button>
-        </div>
-
-        <div className="grid max-h-[42vh] grid-cols-1 gap-2 overflow-y-auto rounded-2xl bg-black/35 p-2 backdrop-blur-sm sm:grid-cols-2">
-          {localStream ? (
-            <div className="relative overflow-hidden rounded-lg border-2 border-blue-500 bg-black">
-              <video
-                autoPlay
-                muted
-                playsInline
-                ref={(el) => { if (el) el.srcObject = localStream }}
-                className={`h-24 w-32 bg-black object-cover transition ${isCameraEnabled ? 'opacity-100' : 'opacity-45 grayscale'}`}
-              />
-              <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1 text-[10px] text-white">
-                You
-              </span>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handleToggleCamera}
-              className="flex h-24 w-32 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-xs text-white transition hover:bg-white/15"
-            >
-              Start camera
-            </button>
-          )}
-
-          {Object.entries(remoteStreams).map(([userId, stream]) => (
-            <div key={userId} className="relative overflow-hidden rounded-lg border-2 border-white/20 bg-black">
-              <video
-                autoPlay
-                playsInline
-                ref={(el) => { if (el) el.srcObject = stream }}
-                className="h-24 w-32 bg-black object-cover"
-              />
-              <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1 text-[10px] text-white">
-                {remoteLabels[userId] || userId.slice(0, 8)}
-              </span>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -962,6 +966,17 @@ const WatchPartyPlayer = () => {
               </button>
 
               <button
+                onClick={() => setActivePanel(activePanel === 'cameras' ? null : 'cameras')}
+                className="relative p-2 hover:bg-white/10 rounded-lg transition"
+                title="View cameras"
+              >
+                <MdVideocam size={22} />
+                <span className="absolute -top-1 -right-1 bg-blue-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  {cameraCount}
+                </span>
+              </button>
+
+              <button
                 onClick={() => setActivePanel(activePanel === 'comments' ? null : 'comments')}
                 className="relative p-2 hover:bg-white/10 rounded-lg transition"
                 title="View comments"
@@ -987,6 +1002,41 @@ const WatchPartyPlayer = () => {
                 connectionStatus={connectionStatus}
                 onClose={() => setActivePanel(null)}
               />
+            ) : activePanel === 'cameras' ? (
+              <div className="flex h-full flex-col p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-white/45">Faces in this room</p>
+                    <h3 className="mt-1 text-lg font-semibold text-white">{cameraCount} camera{cameraCount === 1 ? '' : 's'}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActivePanel(null)}
+                    className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
+                    aria-label="Close cameras"
+                  >
+                    <MdClose size={18} />
+                  </button>
+                </div>
+
+                <div className="mb-4 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleToggleCamera}
+                    className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white transition hover:bg-white/15"
+                  >
+                    {isCameraEnabled ? <MdVideocamOff size={18} /> : <MdVideocam size={18} />}
+                    {isCameraEnabled ? 'Stop camera' : 'Start camera'}
+                  </button>
+                  {cameraError ? (
+                    <span className="text-xs text-red-200">{cameraError}</span>
+                  ) : null}
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                  {renderCameraTiles()}
+                </div>
+              </div>
             ) : (
               <AttendeesPanel />
             )}
