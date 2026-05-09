@@ -71,6 +71,10 @@ const getSocketUserId = (payload = {}) => {
   return payload.senderId || payload.userId || payload.fromUserId || payload.from || payload.participantId || ''
 }
 
+const getPeerIdFromPayload = (payload = {}) => {
+  return payload.fromPeerId || payload.peerId || getSocketUserId(payload)
+}
+
 const logWatchParty = (...args) => {
   console.log('[WatchParty]', ...args);
 }
@@ -133,15 +137,28 @@ const WatchPartyPlayer = () => {
     }
 
     wsRef.current.send(JSON.stringify(message));
-    if (['webrtc-offer', 'webrtc-answer', 'webrtc-ice'].includes(message.type)) {
+    if (['webrtc-offer', 'webrtc-answer', 'webrtc-ice', 'camera-ready', 'offer', 'answer', 'ice-candidate'].includes(message.type)) {
       logWebRtc('sent signaling message', {
         type: message.type,
-        targetPeerId: message.targetPeerId || null,
+        targetPeerId: message.targetPeerId || message.targetUserId || null,
+        userId: message.userId || null,
         hasSdp: Boolean(message.sdp),
+        hasOffer: Boolean(message.offer),
+        hasAnswer: Boolean(message.answer),
         hasCandidate: Boolean(message.candidate)
       });
     }
     return true;
+  };
+
+  const announceCameraReady = () => {
+    if (!userId || !partyId) return;
+
+    sendSocketMessage({
+      type: 'camera-ready',
+      userId,
+      partyId
+    });
   };
 
   const setRemotePeerStream = (remotePeerId, stream, displayUserId) => {
@@ -257,6 +274,13 @@ const WatchPartyPlayer = () => {
           targetPeerId: remotePeerId,
           candidate: event.candidate.toJSON()
         });
+
+        sendSocketMessage({
+          type: 'ice-candidate',
+          targetUserId: remotePeerId,
+          userId,
+          candidate: event.candidate.toJSON()
+        });
       }
     };
 
@@ -324,6 +348,13 @@ const WatchPartyPlayer = () => {
       targetPeerId: remotePeerId,
       sdp: pc.localDescription?.sdp
     });
+
+    sendSocketMessage({
+      type: 'offer',
+      targetUserId: remotePeerId,
+      userId,
+      offer: pc.localDescription
+    });
   };
 
   const handleRemoteOffer = async (fromPeerId, sdp, displayUserId) => {
@@ -357,6 +388,13 @@ const WatchPartyPlayer = () => {
       type: 'webrtc-answer',
       targetPeerId: fromPeerId,
       sdp: pc.localDescription?.sdp
+    });
+
+    sendSocketMessage({
+      type: 'answer',
+      targetUserId: fromPeerId,
+      userId,
+      answer: pc.localDescription
     });
   };
 
@@ -456,6 +494,7 @@ const WatchPartyPlayer = () => {
       setLocalStream(stream);
       localStreamRef.current = stream;
       setIsCameraEnabled(true);
+      announceCameraReady();
 
       Object.values(peersRef.current).forEach((pc) => {
         stream.getTracks().forEach((track) => {
@@ -713,6 +752,9 @@ const WatchPartyPlayer = () => {
     wsRef.current.onopen = () => {
       logWatchParty('websocket connected', { wsUrl });
       setConnectionStatus('connected');
+      if (localStreamRef.current) {
+        announceCameraReady();
+      }
     };
 
     wsRef.current.onmessage = async (event) => {
@@ -727,16 +769,20 @@ const WatchPartyPlayer = () => {
         });
       }
       if (data.type === 'sync') {
-        myPeerIdRef.current = data.peerId || myPeerIdRef.current;
+        myPeerIdRef.current = data.peerId || myPeerIdRef.current || userId;
         setMyPeerId(myPeerIdRef.current);
         hostIdRef.current = data.hostId || '';
         activeRemotePeerIdsRef.current = new Set();
         peerUserIdsRef.current = new Map();
 
         (data.peers || []).forEach((peer) => {
-          if (!peer?.peerId || peer.peerId === myPeerIdRef.current) return;
-          activeRemotePeerIdsRef.current.add(peer.peerId);
-          peerUserIdsRef.current.set(peer.peerId, peer.userId || peer.peerId);
+          const peerId = typeof peer === 'string'
+            ? peer
+            : peer.peerId || peer.userId || peer._id || peer.id;
+
+          if (!peerId || peerId === myPeerIdRef.current || peerId === userId) return;
+          activeRemotePeerIdsRef.current.add(peerId);
+          peerUserIdsRef.current.set(peerId, typeof peer === 'string' ? peer : peer.userId || peer.name || peerId);
         });
         setKnownPeerCount(activeRemotePeerIdsRef.current.size);
         logWatchParty('sync received', {
@@ -828,23 +874,64 @@ const WatchPartyPlayer = () => {
         }
       }
 
-      if (data.type === 'peer-joined') {
+      if (
+        data.type === 'peer-joined' ||
+        data.type === 'camera-ready' ||
+        data.type === 'user-camera-ready' ||
+        data.type === 'user-joined' ||
+        data.type === 'participant-joined'
+      ) {
+        const joinedPeerId = data.peerId || getPeerIdFromPayload(data);
         logWatchParty('peer joined', {
-          peerId: data.peerId,
+          type: data.type,
+          peerId: joinedPeerId,
           userId: data.userId,
           myPeerId: myPeerIdRef.current
         });
 
-        if (data.peerId && data.peerId !== myPeerIdRef.current) {
-          activeRemotePeerIdsRef.current.add(data.peerId);
-          peerUserIdsRef.current.set(data.peerId, data.userId || data.peerId);
+        if (joinedPeerId && joinedPeerId !== myPeerIdRef.current && joinedPeerId !== userId) {
+          activeRemotePeerIdsRef.current.add(joinedPeerId);
+          peerUserIdsRef.current.set(joinedPeerId, data.userId || joinedPeerId);
           setKnownPeerCount(activeRemotePeerIdsRef.current.size);
 
-          if (localStreamRef.current && data.peerId > myPeerIdRef.current) {
-            await offerTo(data.peerId, data.userId);
+          if (localStreamRef.current && joinedPeerId > myPeerIdRef.current) {
+            await offerTo(joinedPeerId, data.userId);
           }
         }
         return;
+      }
+
+      if (data.type === 'participants' || data.type === 'attendees') {
+        const participants = Array.isArray(data.participants)
+          ? data.participants
+          : Array.isArray(data.attendees)
+            ? data.attendees
+            : Array.isArray(data.users)
+              ? data.users
+              : [];
+
+        logWatchParty('participants list received', {
+          type: data.type,
+          count: participants.length
+        });
+
+        participants.forEach((participant) => {
+          const peerId = typeof participant === 'string'
+            ? participant
+            : participant.peerId || participant.userId || participant._id || participant.id;
+
+          if (!peerId || peerId === myPeerIdRef.current || peerId === userId) return;
+          activeRemotePeerIdsRef.current.add(peerId);
+          peerUserIdsRef.current.set(peerId, typeof participant === 'string' ? participant : participant.userId || participant.name || peerId);
+
+          if (localStreamRef.current && peerId > myPeerIdRef.current) {
+            offerTo(peerId, peerUserIdsRef.current.get(peerId)).catch((err) => {
+              console.error('Failed to create WebRTC offer:', err?.name || err, err?.message || '');
+            });
+          }
+        });
+
+        setKnownPeerCount(activeRemotePeerIdsRef.current.size);
       }
 
       if (data.type === 'peer-left') {
@@ -873,13 +960,34 @@ const WatchPartyPlayer = () => {
         return;
       }
 
+      if (data.type === 'offer') {
+        const fromPeerId = getPeerIdFromPayload(data);
+        const offerSdp = data.sdp || data.offer?.sdp;
+
+        await handleRemoteOffer(fromPeerId, offerSdp, peerUserIdsRef.current.get(fromPeerId) || data.userId);
+        return;
+      }
+
       if (data.type === 'webrtc-answer') {
         await handleRemoteAnswer(data.fromPeerId, data.sdp);
         return;
       }
 
+      if (data.type === 'answer') {
+        const fromPeerId = getPeerIdFromPayload(data);
+        const answerSdp = data.sdp || data.answer?.sdp;
+
+        await handleRemoteAnswer(fromPeerId, answerSdp);
+        return;
+      }
+
       if (data.type === 'webrtc-ice') {
         await handleRemoteIce(data.fromPeerId, data.candidate);
+        return;
+      }
+
+      if (data.type === 'ice-candidate') {
+        await handleRemoteIce(getPeerIdFromPayload(data), data.candidate);
         return;
       }
     };
