@@ -784,24 +784,49 @@ const WatchPartyPlayer = () => {
           activeRemotePeerIdsRef.current.add(peerId);
           peerUserIdsRef.current.set(peerId, typeof peer === 'string' ? peer : peer.userId || peer.name || peerId);
         });
+
+        const userIsHost = data.hostId === userId || data.hostId === myPeerIdRef.current;
+
+        if (!userIsHost && data.hostId && data.hostId !== myPeerIdRef.current && data.hostId !== userId) {
+          activeRemotePeerIdsRef.current.add(data.hostId);
+          peerUserIdsRef.current.set(data.hostId, data.hostId);
+          logWatchParty('host added as fallback peer target', {
+            hostId: data.hostId,
+            myPeerId: myPeerIdRef.current
+          });
+        }
+
         setKnownPeerCount(activeRemotePeerIdsRef.current.size);
         logWatchParty('sync received', {
           myPeerId: myPeerIdRef.current,
           hostId: data.hostId,
+          userIsHost,
           peerCount: activeRemotePeerIdsRef.current.size,
           peers: Array.from(activeRemotePeerIdsRef.current),
           hasState: Boolean(data.state),
           state: data.state || null
         });
 
-        const userIsHost = data.hostId === userId || data.hostId === myPeerIdRef.current;
         isHostRef.current = userIsHost;
         setIsHost(userIsHost);
         setPlayerControls(userIsHost);
         setPlayerMuted(false);
         logWatchParty('host status resolved', { userIsHost, userId, myPeerId: myPeerIdRef.current });
 
-        startLocalVideo().then(connectOffersToRemotes);
+        startLocalVideo().then(() => {
+          connectOffersToRemotes();
+
+          if (!userIsHost && data.hostId && data.hostId !== myPeerIdRef.current) {
+            logWebRtc('guest offering directly to host fallback', {
+              hostId: data.hostId,
+              myPeerId: myPeerIdRef.current
+            });
+
+            offerTo(data.hostId, peerUserIdsRef.current.get(data.hostId)).catch((err) => {
+              console.error('Failed to create WebRTC offer for host fallback:', err?.name || err, err?.message || '');
+            });
+          }
+        });
 
         window.setTimeout(() => {
           if (!playerRef.current || !data.state) return;
