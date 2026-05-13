@@ -27,8 +27,13 @@ const formatTime = (value) => {
   })
 }
 
+const isRealUserName = (name) => {
+  return Boolean(name && String(name).trim() && String(name).trim().toLowerCase() !== 'guest')
+}
+
 const CommentsPanel = ({
   messages = [],
+  userNamesById = {},
   draft = '',
   onDraftChange,
   onSend,
@@ -68,6 +73,9 @@ const CommentsPanel = ({
         ) : (
           messages.map((message) => {
             const isOwnMessage = message.userId && currentUserId && message.userId === currentUserId
+            const resolvedUserName = isRealUserName(userNamesById[message.userId])
+              ? userNamesById[message.userId]
+              : message.userName || 'Guest'
 
             return (
               <div
@@ -82,18 +90,18 @@ const CommentsPanel = ({
                     className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${isOwnMessage ? 'bg-red-600 text-white' : 'bg-white/10 text-gray-200'
                       }`}
                   >
-                    {getInitials(message.userName)}
+                    {getInitials(resolvedUserName)}
                   </div>
 
                   <div className={`space-y-1 ${isOwnMessage ? 'items-end text-right' : 'text-left'}`}>
                     <div className="flex items-center gap-2 text-[11px] text-gray-400">
-                      <span>{isOwnMessage ? 'You' : message.userName || 'Guest'}</span>
+                      <span>{isOwnMessage ? 'You' : resolvedUserName}</span>
                       {message.createdAt ? <span>{formatTime(message.createdAt)}</span> : null}
                     </div>
                     <div
                       className={`rounded-2xl px-3 py-2 text-sm leading-relaxed ${isOwnMessage
-                          ? 'rounded-tr-md bg-red-600 text-white'
-                          : 'rounded-tl-md bg-[#1c1c1c] text-gray-100'
+                        ? 'rounded-tr-md bg-red-600 text-white'
+                        : 'rounded-tl-md bg-[#1c1c1c] text-gray-100'
                         }`}
                     >
                       {message.text}

@@ -17,6 +17,14 @@ const createMessageId = (message = {}) => {
   )
 }
 
+const isRealUserName = (name) => {
+  return Boolean(name && String(name).trim() && String(name).trim().toLowerCase() !== 'guest')
+}
+
+const pickRealUserName = (...names) => {
+  return names.find(isRealUserName) || ''
+}
+
 const normalizeChatMessage = (payload, options = {}) => {
   if (!payload) {
     return null
@@ -24,6 +32,7 @@ const normalizeChatMessage = (payload, options = {}) => {
 
   const currentUserId = options.currentUserId || ''
   const currentUserName = options.currentUserName || 'Guest'
+  const userNamesById = options.userNamesById || {}
 
   const text = payload.text || payload.message || payload.body || payload.content || ''
 
@@ -35,6 +44,14 @@ const normalizeChatMessage = (payload, options = {}) => {
     payload.userId || payload.senderId || payload.user?._id || payload.user?.id || ''
 
   const resolvedUserName =
+    pickRealUserName(
+      payload.userName,
+      payload.senderName,
+      payload.name,
+      payload.user?.name,
+      payload.user?.fullName,
+      userNamesById[resolvedUserId]
+    ) ||
     payload.userName ||
     payload.senderName ||
     payload.name ||
@@ -58,7 +75,18 @@ const mergeMessages = (currentMessages, incomingMessages) => {
 
   incomingMessages.forEach((message) => {
     if (message?.id) {
-      map.set(message.id, message)
+      const existingMessage = map.get(message.id)
+      const resolvedUserName =
+        pickRealUserName(message.userName, existingMessage?.userName) ||
+        message.userName ||
+        existingMessage?.userName ||
+        'Guest'
+
+      map.set(message.id, {
+        ...existingMessage,
+        ...message,
+        userName: resolvedUserName
+      })
     }
   })
 
@@ -117,6 +145,20 @@ const getStoredUserName = (user = {}) => {
   return user?.name || user?.fullName || user?.username || 'Guest'
 }
 
+const getStoredUser = () => {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    const userString = window.localStorage.getItem('user')
+    return userString ? JSON.parse(userString) : null
+  } catch (error) {
+    console.warn('Could not read stored user for chat message:', error)
+    return null
+  }
+}
+
 const getParticipantPeerId = (participant) => {
   return typeof participant === 'string'
     ? participant
@@ -160,6 +202,7 @@ const WatchPartyPlayer = () => {
   const [myPeerId, setMyPeerId] = useState('');
   const [knownPeerCount, setKnownPeerCount] = useState(0);
   const [remoteDisplayNames, setRemoteDisplayNames] = useState({});
+  const [attendeeNames, setAttendeeNames] = useState({});
 
   const iframeRef = useRef(null);
   const playerRef = useRef(null);
@@ -167,6 +210,7 @@ const WatchPartyPlayer = () => {
   const isSyncingRef = useRef(false);
   const isHostRef = useRef(false);
   const hostIdRef = useRef('');
+  const attendeeNamesRef = useRef({});
 
   useEffect(() => {
     if (isHydrated) {
@@ -221,6 +265,48 @@ const WatchPartyPlayer = () => {
       });
     }
     return true;
+  };
+
+  const rememberAttendeeName = (nextUserId = '', nextUserName = '') => {
+    if (!nextUserId || !isRealUserName(nextUserName)) {
+      return;
+    }
+
+    attendeeNamesRef.current = {
+      ...attendeeNamesRef.current,
+      [nextUserId]: nextUserName
+    };
+
+    setAttendeeNames((currentNames) => ({
+      ...currentNames,
+      [nextUserId]: nextUserName
+    }));
+  };
+
+  const announceUserProfile = (profileName = '') => {
+    const storedUser = getStoredUser();
+    const resolvedProfileName = pickRealUserName(profileName, getStoredUserName(storedUser), userName);
+
+    if (wsRef.current?.readyState !== WebSocket.OPEN || !userId || !isRealUserName(resolvedProfileName)) {
+      return;
+    }
+
+    const profileMessage = {
+      type: 'user-profile',
+      partyId,
+      userId,
+      senderId: userId,
+      senderUserId: userId,
+      userName: resolvedProfileName,
+      senderName: resolvedProfileName,
+      name: resolvedProfileName,
+      user: {
+        _id: userId,
+        name: resolvedProfileName
+      }
+    };
+
+    wsRef.current.send(JSON.stringify(profileMessage));
   };
 
   const announceCameraReady = () => {
@@ -594,6 +680,7 @@ const WatchPartyPlayer = () => {
 
     const user = JSON.parse(userString);
     const storedUserName = getStoredUserName(user);
+    rememberAttendeeName(user?._id || userId || null, storedUserName);
 
     if (!userId) {
       setUserId(user?._id || null);
@@ -796,6 +883,8 @@ const WatchPartyPlayer = () => {
     wsRef.current.onopen = () => {
       console.log('WebSocket connected');
       setConnectionStatus('connected');
+      rememberAttendeeName(userId, userName);
+      announceUserProfile();
       if (localStreamRef.current) {
         announceCameraReady();
       }
@@ -803,6 +892,11 @@ const WatchPartyPlayer = () => {
 
     wsRef.current.onmessage = async (event) => {
       const data = JSON.parse(event.data);
+      const socketUserId = data.senderUserId || data.userId || data.senderId || data.user?._id || data.user?.id || '';
+      const socketUserName = getSocketUserName(data);
+
+      rememberAttendeeName(socketUserId, socketUserName);
+
       const isWebRtcMessage = ['webrtc-offer', 'webrtc-answer', 'webrtc-ice', 'offer', 'answer', 'ice-candidate', 'camera-ready', 'user-camera-ready'].includes(data.type);
 
       if (isWebRtcMessage && !isMessageForCurrentUser(data, userId, myPeerIdRef.current)) {
@@ -886,10 +980,15 @@ const WatchPartyPlayer = () => {
         setAttendeeCount(data.count);
       }
 
+      if (data.type === 'user-profile' || data.type === 'participant-profile') {
+        rememberAttendeeName(socketUserId, socketUserName);
+      }
+
       if (data.type === 'chat' || data.type === 'message' || data.type === 'comment') {
         const nextMessage = normalizeChatMessage(data, {
           currentUserId: userId,
-          currentUserName: userName
+          currentUserName: userName,
+          userNamesById: attendeeNamesRef.current
         });
 
         if (nextMessage) {
@@ -910,7 +1009,8 @@ const WatchPartyPlayer = () => {
           .map((message) =>
             normalizeChatMessage(message, {
               currentUserId: userId,
-              currentUserName: userName
+              currentUserName: userName,
+              userNamesById: attendeeNamesRef.current
             })
           )
           .filter(Boolean);
@@ -931,6 +1031,8 @@ const WatchPartyPlayer = () => {
         const remoteUserId = data.senderUserId || data.userId || data.senderId || remotePeerId;
         const remoteName = getSocketUserName(data);
         console.log('WebRTC peer discovery message received:', data.type, remotePeerId);
+        rememberAttendeeName(remoteUserId, remoteName);
+        announceUserProfile();
         registerRemotePeer(remotePeerId, remoteUserId, true, remoteName);
       }
 
@@ -948,6 +1050,7 @@ const WatchPartyPlayer = () => {
           const remoteUserId = getParticipantUserId(participant, remotePeerId);
           const remoteName = getParticipantName(participant);
 
+          rememberAttendeeName(remoteUserId, remoteName);
           registerRemotePeer(remotePeerId, remoteUserId, true, remoteName);
         });
       }
@@ -991,6 +1094,7 @@ const WatchPartyPlayer = () => {
       activeRemotePeerIdsRef.current = new Set();
       peerUserIdsRef.current = new Map();
       peerDisplayNamesRef.current = new Map();
+      attendeeNamesRef.current = {};
       pendingIncomingOffersRef.current = [];
       pendingOutboundPeersRef.current = new Set();
       processedOfferSdpRef.current = new Map();
@@ -999,6 +1103,7 @@ const WatchPartyPlayer = () => {
       myPeerIdRef.current = '';
       setRemoteStreams({});
       setRemoteDisplayNames({});
+      setAttendeeNames({});
       setMyPeerId('');
       setKnownPeerCount(0);
     };
@@ -1053,12 +1158,25 @@ const WatchPartyPlayer = () => {
       return
     }
 
+    const storedUser = getStoredUser()
+    const senderName = getStoredUserName(storedUser) || userName || 'Guest'
+    rememberAttendeeName(userId, senderName)
+    announceUserProfile(senderName)
+
     const outgoingMessage = {
       type: 'chat',
       clientId: `${userId || 'guest'}-${Date.now()}`,
       partyId,
       userId,
-      userName,
+      senderId: userId,
+      senderUserId: userId,
+      userName: senderName,
+      senderName,
+      name: senderName,
+      user: {
+        _id: userId,
+        name: senderName
+      },
       text,
       message: text,
       createdAt: new Date().toISOString()
@@ -1281,6 +1399,7 @@ const WatchPartyPlayer = () => {
             {activePanel === 'comments' ? (
               <CommentsPanel
                 messages={messages}
+                userNamesById={attendeeNames}
                 draft={messageDraft}
                 onDraftChange={setMessageDraft}
                 onSend={handleSendMessage}
