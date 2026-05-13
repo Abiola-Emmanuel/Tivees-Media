@@ -83,6 +83,18 @@ const getSocketPeerId = (payload = {}) => {
   return payload.senderPeerId || payload.fromPeerId || payload.peerId || getSocketUserId(payload)
 }
 
+const getSocketUserName = (payload = {}) => {
+  return (
+    payload.senderName ||
+    payload.userName ||
+    payload.name ||
+    payload.user?.name ||
+    payload.user?.fullName ||
+    payload.participant?.name ||
+    ''
+  )
+}
+
 const getSocketTargetUserId = (payload = {}) => {
   return payload.targetUserId || payload.receiverId || payload.toUserId || payload.to || ''
 }
@@ -99,6 +111,28 @@ const isMessageForCurrentUser = (payload = {}, currentUserId = '', currentPeerId
     (!targetUserId || !currentUserId || targetUserId === currentUserId) &&
     (!targetPeerId || !currentPeerId || targetPeerId === currentPeerId)
   )
+}
+
+const getStoredUserName = (user = {}) => {
+  return user?.name || user?.fullName || user?.username || 'Guest'
+}
+
+const getParticipantPeerId = (participant) => {
+  return typeof participant === 'string'
+    ? participant
+    : participant.peerId || participant._id || participant.id || participant.userId
+}
+
+const getParticipantUserId = (participant, fallbackPeerId = '') => {
+  return typeof participant === 'string'
+    ? participant
+    : participant.userId || participant.senderUserId || participant.user?._id || participant.user?.id || fallbackPeerId
+}
+
+const getParticipantName = (participant) => {
+  return typeof participant === 'string'
+    ? ''
+    : participant.name || participant.userName || participant.senderName || participant.user?.name || participant.user?.fullName || ''
 }
 
 const WatchPartyPlayer = () => {
@@ -125,6 +159,7 @@ const WatchPartyPlayer = () => {
   const [cameraError, setCameraError] = useState('');
   const [myPeerId, setMyPeerId] = useState('');
   const [knownPeerCount, setKnownPeerCount] = useState(0);
+  const [remoteDisplayNames, setRemoteDisplayNames] = useState({});
 
   const iframeRef = useRef(null);
   const playerRef = useRef(null);
@@ -155,6 +190,7 @@ const WatchPartyPlayer = () => {
   const myPeerIdRef = useRef('');
   const activeRemotePeerIdsRef = useRef(new Set());
   const peerUserIdsRef = useRef(new Map());
+  const peerDisplayNamesRef = useRef(new Map());
   const pendingIncomingOffersRef = useRef([]);
   const pendingOutboundPeersRef = useRef(new Set());
   const processedOfferSdpRef = useRef(new Map());
@@ -173,6 +209,8 @@ const WatchPartyPlayer = () => {
       senderUserId: userId,
       peerId: myPeerIdRef.current || undefined,
       senderId: userId,
+      senderName: userName,
+      userName,
       ...message
     }));
     if (['camera-ready', 'webrtc-offer', 'webrtc-answer', 'webrtc-ice', 'offer', 'answer', 'ice-candidate'].includes(message.type)) {
@@ -190,6 +228,8 @@ const WatchPartyPlayer = () => {
       type: 'camera-ready',
       userId,
       senderId: userId,
+      senderName: userName,
+      userName,
       partyId
     });
   };
@@ -227,8 +267,19 @@ const WatchPartyPlayer = () => {
   }
 
   // Peer conection login
-  const createPeerConnection = (remotePeerId, displayUserId = '') => {
+  const rememberPeerName = (remotePeerId, displayName = '') => {
+    if (!remotePeerId || !displayName) return;
+
+    peerDisplayNamesRef.current.set(remotePeerId, displayName);
+    setRemoteDisplayNames((currentNames) => ({
+      ...currentNames,
+      [remotePeerId]: displayName
+    }));
+  }
+
+  const createPeerConnection = (remotePeerId, displayUserId = '', displayName = '') => {
     if (peersRef.current[remotePeerId]) {
+      rememberPeerName(remotePeerId, displayName);
       return peersRef.current[remotePeerId];
     }
 
@@ -239,6 +290,7 @@ const WatchPartyPlayer = () => {
     if (displayUserId) {
       peerUserIdsRef.current.set(remotePeerId, displayUserId);
     }
+    rememberPeerName(remotePeerId, displayName);
 
     console.log('WebRTC peer connection created for', remotePeerId);
 
@@ -316,7 +368,7 @@ const WatchPartyPlayer = () => {
     }
   }
 
-  const createOfferForPeer = async (remotePeerId, displayUserId = '') => {
+  const createOfferForPeer = async (remotePeerId, displayUserId = '', displayName = '') => {
     if (!remotePeerId || remotePeerId === myPeerIdRef.current || remotePeerId === userId) {
       return;
     }
@@ -326,6 +378,7 @@ const WatchPartyPlayer = () => {
       if (displayUserId) {
         peerUserIdsRef.current.set(remotePeerId, displayUserId);
       }
+      rememberPeerName(remotePeerId, displayName);
       return;
     }
 
@@ -333,7 +386,7 @@ const WatchPartyPlayer = () => {
       return;
     }
 
-    const pc = createPeerConnection(remotePeerId, displayUserId);
+    const pc = createPeerConnection(remotePeerId, displayUserId, displayName);
     if (pc.signalingState !== 'stable') {
       console.log('WebRTC offer skipped because peer is not stable:', remotePeerId, pc.signalingState);
       return;
@@ -372,7 +425,13 @@ const WatchPartyPlayer = () => {
     delete pendingIceCandidatesRef.current[remotePeerId];
     activeRemotePeerIdsRef.current.delete(remotePeerId);
     peerUserIdsRef.current.delete(remotePeerId);
+    peerDisplayNamesRef.current.delete(remotePeerId);
     setKnownPeerCount(activeRemotePeerIdsRef.current.size);
+    setRemoteDisplayNames(prev => {
+      const nextNames = { ...prev };
+      delete nextNames[remotePeerId];
+      return nextNames;
+    });
 
     setRemoteStreams(prev => {
       const nextStreams = { ...prev };
@@ -385,7 +444,7 @@ const WatchPartyPlayer = () => {
     return Boolean(localStreamRef.current && myPeerIdRef.current && remotePeerId > myPeerIdRef.current);
   }
 
-  const registerRemotePeer = (remotePeerId, displayUserId = '', autoOffer = true) => {
+  const registerRemotePeer = (remotePeerId, displayUserId = '', autoOffer = true, displayName = '') => {
     if (!remotePeerId || remotePeerId === myPeerIdRef.current || remotePeerId === userId) {
       return;
     }
@@ -395,11 +454,12 @@ const WatchPartyPlayer = () => {
     if (displayUserId) {
       peerUserIdsRef.current.set(remotePeerId, displayUserId);
     }
+    rememberPeerName(remotePeerId, displayName);
 
     setKnownPeerCount(activeRemotePeerIdsRef.current.size);
 
     if (autoOffer && shouldOfferToPeer(remotePeerId)) {
-      createOfferForPeer(remotePeerId, displayUserId).catch((err) => {
+      createOfferForPeer(remotePeerId, displayUserId, displayName).catch((err) => {
         console.error('Failed to create WebRTC offer:', err?.name || err, err?.message || '');
       });
     } else if (autoOffer && !localStreamRef.current) {
@@ -407,7 +467,7 @@ const WatchPartyPlayer = () => {
     }
   }
 
-  const handleRemoteOffer = async (remotePeerId, sdp, displayUserId = '') => {
+  const handleRemoteOffer = async (remotePeerId, sdp, displayUserId = '', displayName = '') => {
     if (!remotePeerId || remotePeerId === myPeerIdRef.current || !sdp) {
       return;
     }
@@ -417,19 +477,19 @@ const WatchPartyPlayer = () => {
     }
 
     processedOfferSdpRef.current.set(remotePeerId, sdp);
-    registerRemotePeer(remotePeerId, displayUserId, false);
+    registerRemotePeer(remotePeerId, displayUserId, false, displayName);
 
     if (!localStreamRef.current) {
-      pendingIncomingOffersRef.current.push({ remotePeerId, sdp, displayUserId });
+      pendingIncomingOffersRef.current.push({ remotePeerId, sdp, displayUserId, displayName });
       return;
     }
 
-    let pc = createPeerConnection(remotePeerId, displayUserId);
+    let pc = createPeerConnection(remotePeerId, displayUserId, displayName);
 
     if (pc.signalingState !== 'stable') {
       pc.close();
       delete peersRef.current[remotePeerId];
-      pc = createPeerConnection(remotePeerId, displayUserId);
+      pc = createPeerConnection(remotePeerId, displayUserId, displayName);
     }
 
     await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }));
@@ -499,7 +559,7 @@ const WatchPartyPlayer = () => {
     const incomingOffers = pendingIncomingOffersRef.current.splice(0);
 
     for (const offer of incomingOffers) {
-      await handleRemoteOffer(offer.remotePeerId, offer.sdp, offer.displayUserId);
+      await handleRemoteOffer(offer.remotePeerId, offer.sdp, offer.displayUserId, offer.displayName);
     }
 
     const outboundPeers = Array.from(pendingOutboundPeersRef.current);
@@ -507,13 +567,13 @@ const WatchPartyPlayer = () => {
 
     for (const remotePeerId of outboundPeers) {
       if (shouldOfferToPeer(remotePeerId)) {
-        await createOfferForPeer(remotePeerId, peerUserIdsRef.current.get(remotePeerId));
+        await createOfferForPeer(remotePeerId, peerUserIdsRef.current.get(remotePeerId), peerDisplayNamesRef.current.get(remotePeerId));
       }
     }
 
     activeRemotePeerIdsRef.current.forEach((remotePeerId) => {
       if (shouldOfferToPeer(remotePeerId)) {
-        createOfferForPeer(remotePeerId, peerUserIdsRef.current.get(remotePeerId)).catch((err) => {
+        createOfferForPeer(remotePeerId, peerUserIdsRef.current.get(remotePeerId), peerDisplayNamesRef.current.get(remotePeerId)).catch((err) => {
           console.error('Failed to create WebRTC offer:', err?.name || err, err?.message || '');
         });
       }
@@ -533,12 +593,13 @@ const WatchPartyPlayer = () => {
     setIsAuthenticated(true);
 
     const user = JSON.parse(userString);
+    const storedUserName = getStoredUserName(user);
 
     if (!userId) {
       setUserId(user?._id || null);
-      setUserName(user?.name || user?.fullName || 'Guest');
+      setUserName(storedUserName);
     } else {
-      setUserName(user?.name || user?.fullName || 'Guest');
+      setUserName(storedUserName);
     }
     setIsHydrated(true);
   }, []);
@@ -778,16 +839,11 @@ const WatchPartyPlayer = () => {
         console.log('Host?', userIsHost);
 
         roster.forEach((participant) => {
-          const remotePeerId =
-            typeof participant === 'string'
-              ? participant
-              : participant.peerId || participant._id || participant.id || participant.userId;
-          const remoteUserId =
-            typeof participant === 'string'
-              ? participant
-              : participant.userId || participant.senderUserId || participant.name || remotePeerId;
+          const remotePeerId = getParticipantPeerId(participant);
+          const remoteUserId = getParticipantUserId(participant, remotePeerId);
+          const remoteName = getParticipantName(participant);
 
-          registerRemotePeer(remotePeerId, remoteUserId);
+          registerRemotePeer(remotePeerId, remoteUserId, true, remoteName);
         });
 
         flushPendingRtc().catch((err) => {
@@ -873,8 +929,9 @@ const WatchPartyPlayer = () => {
       ) {
         const remotePeerId = getSocketPeerId(data);
         const remoteUserId = data.senderUserId || data.userId || data.senderId || remotePeerId;
+        const remoteName = getSocketUserName(data);
         console.log('WebRTC peer discovery message received:', data.type, remotePeerId);
-        registerRemotePeer(remotePeerId, remoteUserId);
+        registerRemotePeer(remotePeerId, remoteUserId, true, remoteName);
       }
 
       if (data.type === 'participants' || data.type === 'attendees') {
@@ -887,16 +944,11 @@ const WatchPartyPlayer = () => {
               : [];
 
         participants.forEach((participant) => {
-          const remotePeerId =
-            typeof participant === 'string'
-              ? participant
-              : participant.peerId || participant._id || participant.id || participant.userId;
-          const remoteUserId =
-            typeof participant === 'string'
-              ? participant
-              : participant.userId || participant.senderUserId || participant.name || remotePeerId;
+          const remotePeerId = getParticipantPeerId(participant);
+          const remoteUserId = getParticipantUserId(participant, remotePeerId);
+          const remoteName = getParticipantName(participant);
 
-          registerRemotePeer(remotePeerId, remoteUserId);
+          registerRemotePeer(remotePeerId, remoteUserId, true, remoteName);
         });
       }
 
@@ -907,9 +959,10 @@ const WatchPartyPlayer = () => {
       if (data.type === 'webrtc-offer' || data.type === 'offer') {
         const remotePeerId = getSocketPeerId(data);
         const remoteUserId = data.senderUserId || data.userId || data.senderId || peerUserIdsRef.current.get(remotePeerId);
+        const remoteName = getSocketUserName(data);
         const offerSdp = data.sdp || data.offer?.sdp;
 
-        await handleRemoteOffer(remotePeerId, offerSdp, remoteUserId);
+        await handleRemoteOffer(remotePeerId, offerSdp, remoteUserId, remoteName);
       }
 
       if (data.type === 'webrtc-answer' || data.type === 'answer') {
@@ -937,6 +990,7 @@ const WatchPartyPlayer = () => {
       peersRef.current = {};
       activeRemotePeerIdsRef.current = new Set();
       peerUserIdsRef.current = new Map();
+      peerDisplayNamesRef.current = new Map();
       pendingIncomingOffersRef.current = [];
       pendingOutboundPeersRef.current = new Set();
       processedOfferSdpRef.current = new Map();
@@ -944,6 +998,7 @@ const WatchPartyPlayer = () => {
       pendingIceCandidatesRef.current = {};
       myPeerIdRef.current = '';
       setRemoteStreams({});
+      setRemoteDisplayNames({});
       setMyPeerId('');
       setKnownPeerCount(0);
     };
@@ -1036,6 +1091,9 @@ const WatchPartyPlayer = () => {
   }
 
   const cameraCount = (localStream ? 1 : 0) + Object.keys(remoteStreams).length;
+  const getCameraDisplayName = (peerId = '') => {
+    return remoteDisplayNames[peerId] || peerDisplayNamesRef.current.get(peerId) || peerId.slice(0, 8) || 'Guest'
+  }
 
   const renderCameraTiles = () => (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1049,7 +1107,7 @@ const WatchPartyPlayer = () => {
             className={`h-full w-full bg-black object-cover transition ${isCameraEnabled ? 'opacity-100' : 'opacity-45 grayscale'}`}
           />
           <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1 text-[10px] text-white">
-            You
+            {userName ? `${userName} (You)` : 'You'}
           </span>
         </div>
       ) : (
@@ -1062,8 +1120,8 @@ const WatchPartyPlayer = () => {
         </button>
       )}
 
-      {Object.entries(remoteStreams).map(([userId, stream]) => (
-        <div key={userId} className="relative aspect-video overflow-hidden rounded-lg border-2 border-white/20 bg-black">
+      {Object.entries(remoteStreams).map(([peerId, stream]) => (
+        <div key={peerId} className="relative aspect-video overflow-hidden rounded-lg border-2 border-white/20 bg-black">
           <video
             autoPlay
             playsInline
@@ -1071,7 +1129,7 @@ const WatchPartyPlayer = () => {
             className="h-full w-full bg-black object-cover"
           />
           <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1 text-[10px] text-white">
-            {userId.slice(0, 8)}
+            {getCameraDisplayName(peerId)}
           </span>
         </div>
       ))}
