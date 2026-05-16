@@ -186,6 +186,7 @@ const WatchPartyPlayer = () => {
   const userIdParam = searchParams.get('userId');
 
   const [isHost, setIsHost] = useState(false);
+  const [showGuestControlNotice, setShowGuestControlNotice] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [activePanel, setActivePanel] = useState(null);
   const [attendeeCount, setAttendeeCount] = useState(1);
@@ -224,6 +225,20 @@ const WatchPartyPlayer = () => {
       }
     }
   }, [isHydrated])
+
+  useEffect(() => {
+    if (isHost) {
+      setShowGuestControlNotice(false);
+      return;
+    }
+
+    setShowGuestControlNotice(true);
+    const timeoutId = window.setTimeout(() => {
+      setShowGuestControlNotice(false);
+    }, 5000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isHost]);
 
   // To store the video streams for the UI
   const [localStream, setLocalStream] = useState(null);
@@ -1339,7 +1354,7 @@ const WatchPartyPlayer = () => {
         </div>
 
         <div className="z-10 flex flex-col gap-6">
-          {!isHost && (
+          {!isHost && showGuestControlNotice && (
             <div className="px-3 py-2 bg-blue-500/20 border border-blue-500/50 rounded-lg text-xs text-blue-200">
               Only host controls the video
             </div>
