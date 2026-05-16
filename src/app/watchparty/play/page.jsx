@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { MdClose, MdShare, MdPerson, MdMessage, MdVideocam, MdVideocamOff } from 'react-icons/md';
+import { MdClose, MdShare, MdPerson, MdMessage, MdVideocam, MdVideocamOff, MdVolumeOff, MdVolumeUp } from 'react-icons/md';
 import AttendeesPanel from '@/components/AttendesPanel';
 import CommentsPanel from '@/components/CommentsPanel';
 
@@ -194,6 +194,7 @@ const WatchPartyPlayer = () => {
   const [userName, setUserName] = useState('Guest');
   const [isHydrated, setIsHydrated] = useState(false);
   const [audioActivationRequired, setAudioActivationRequired] = useState(false);
+  const [isPlayerMuted, setIsPlayerMuted] = useState(false);
   const [messages, setMessages] = useState([]);
   const [messageDraft, setMessageDraft] = useState('');
   const [isCameraEnabled, setIsCameraEnabled] = useState(false);
@@ -703,6 +704,8 @@ const WatchPartyPlayer = () => {
   };
 
   const setPlayerMuted = (muted) => {
+    setIsPlayerMuted(muted);
+
     if (!playerRef.current) return;
 
     try {
@@ -1115,18 +1118,25 @@ const WatchPartyPlayer = () => {
     alert('Watch party link copied!');
   };
 
-  const handleEnableAudio = async () => {
+  const handleToggleAudio = async () => {
     if (!playerRef.current) return;
 
+    const shouldEnableAudio = isPlayerMuted || audioActivationRequired;
+
     try {
-      setPlayerMuted(false);
-      const playResult = playerRef.current.play();
-      if (playResult && typeof playResult.then === 'function') {
-        await playResult;
+      setPlayerMuted(!shouldEnableAudio);
+
+      if (shouldEnableAudio) {
+        const playResult = playerRef.current.play();
+        if (playResult && typeof playResult.then === 'function') {
+          await playResult;
+        }
+        setAudioActivationRequired(false);
       }
-      setAudioActivationRequired(false);
     } catch (err) {
       console.error('Failed to enable guest audio:', err?.name || err, err?.message || '');
+      setPlayerMuted(true);
+      setAudioActivationRequired(true);
     }
   };
 
@@ -1328,17 +1338,6 @@ const WatchPartyPlayer = () => {
           />
         </div>
 
-        {audioActivationRequired && !isHost && (
-          <div className="absolute inset-x-6 bottom-28 z-20">
-            <button
-              onClick={handleEnableAudio}
-              className="w-full rounded-xl border border-white/20 bg-black/75 px-4 py-3 text-sm text-white backdrop-blur-sm transition hover:bg-black/85"
-            >
-              Tap to enable watch party audio
-            </button>
-          </div>
-        )}
-
         <div className="z-10 flex flex-col gap-6">
           {!isHost && (
             <div className="px-3 py-2 bg-blue-500/20 border border-blue-500/50 rounded-lg text-xs text-blue-200">
@@ -1354,6 +1353,20 @@ const WatchPartyPlayer = () => {
                 title="Share watch party"
               >
                 <MdShare size={22} />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleToggleAudio}
+                className={`p-2 rounded-lg transition ${
+                  audioActivationRequired || isPlayerMuted
+                    ? 'bg-white/15 text-white hover:bg-white/25'
+                    : 'hover:bg-white/10'
+                }`}
+                title={audioActivationRequired || isPlayerMuted ? 'Enable audio' : 'Mute audio'}
+                aria-label={audioActivationRequired || isPlayerMuted ? 'Enable audio' : 'Mute audio'}
+              >
+                {audioActivationRequired || isPlayerMuted ? <MdVolumeOff size={22} /> : <MdVolumeUp size={22} />}
               </button>
 
               {/* Add attendee count later */}
