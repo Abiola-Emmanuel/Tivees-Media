@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useRef } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { FaPlay, FaPlus } from 'react-icons/fa6';
-import { AiOutlineLike } from "react-icons/ai";
-import { MdAirplay } from "react-icons/md";
+import { AiFillLike, AiOutlineLike } from "react-icons/ai";
+import { MdAirplay, MdCheckCircle, MdError } from "react-icons/md";
 import { AiOutlineStar, AiFillStar } from 'react-icons/ai';
 import Navbar from '@/components/Navbar';
 import FreeTrial from '@/components/FreeTrial';
@@ -23,6 +23,11 @@ export default function MoviePage({ params }) {
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState([]);
   const [error, setError] = useState(null);
+  const [isLiking, setIsLiking] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(null);
+  const [likeNotification, setLikeNotification] = useState(null);
+  const likeNotificationTimeoutRef = useRef(null);
   const router = useRouter();
   const url = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -41,6 +46,14 @@ export default function MoviePage({ params }) {
 
         if (response.data.status === "SUCCESS") {
           setMovie(response.data.movie);
+          const initialLikesCount =
+            response.data.movie?.likesCount ??
+            response.data.movie?.likes?.length ??
+            response.data.movie?.likes;
+
+          if (typeof initialLikesCount === 'number') {
+            setLikesCount(initialLikesCount);
+          }
         }
 
 
@@ -82,6 +95,89 @@ export default function MoviePage({ params }) {
 
     fetchReviews();
   }, [id, url]);
+
+  useEffect(() => {
+    return () => {
+      if (likeNotificationTimeoutRef.current) {
+        window.clearTimeout(likeNotificationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const showLikeNotification = (message, type = 'success') => {
+    if (likeNotificationTimeoutRef.current) {
+      window.clearTimeout(likeNotificationTimeoutRef.current);
+    }
+
+    setLikeNotification({ message, type });
+    likeNotificationTimeoutRef.current = window.setTimeout(() => {
+      setLikeNotification(null);
+    }, 3500);
+  };
+
+  const handleLikeMovie = async () => {
+    if (!movie?._id || isLiking) {
+      return;
+    }
+
+    const authToken = localStorage.getItem("authToken");
+    const userString = localStorage.getItem("user");
+    const user = userString ? JSON.parse(userString) : null;
+    const userId = user?._id;
+
+    if (!authToken || !userId) {
+      showLikeNotification('Sign in to like movies.', 'error');
+      router.push('/sign-in');
+      return;
+    }
+
+    try {
+      setIsLiking(true);
+
+      const response = await axios.post(
+        `${url}/api/v1/users/users-movieLike`,
+        {
+          movieId: movie._id,
+          userId
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        }
+      );
+
+      if (response.data.status === 'SUCCESS') {
+        setIsLiked(true);
+        if (typeof response.data.likesCount === 'number') {
+          setLikesCount(response.data.likesCount);
+        }
+        showLikeNotification('Movie liked!', 'success');
+        return;
+      }
+
+      if (response.data.message === 'You have already liked this movie.') {
+        setIsLiked(true);
+        showLikeNotification('Already liked.', 'error');
+        return;
+      }
+
+      showLikeNotification(response.data.message || 'Like failed.', 'error');
+    } catch (err) {
+      const apiMessage = err.response?.data?.message;
+
+      if (apiMessage === 'You have already liked this movie.') {
+        setIsLiked(true);
+        showLikeNotification('Already liked.', 'error');
+        return;
+      }
+
+      console.error('Error liking movie:', err);
+      showLikeNotification(apiMessage || 'Like failed. Try again.', 'error');
+    } finally {
+      setIsLiking(false);
+    }
+  };
 
   const RatingStars = ({ rating, interactive = false, onRatingChange, onHover }) => {
     return (
@@ -139,6 +235,28 @@ export default function MoviePage({ params }) {
     <>
 
       <div className="relative w-full min-h-screen bg-black text-white">
+        {likeNotification && (
+          <div className="fixed right-4 top-6 z-50 w-fit max-w-[calc(100vw-2rem)] animate-in slide-in-from-top-3 fade-in duration-200">
+            <div
+              className={`flex min-w-52 items-center gap-3 rounded-xl border px-3 py-2.5 shadow-2xl backdrop-blur-md ${
+                likeNotification.type === 'success'
+                  ? 'border-green-400/30 bg-black/85 text-green-100 shadow-green-950/30'
+                  : 'border-red-400/30 bg-black/85 text-red-100 shadow-red-950/30'
+              }`}
+            >
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                  likeNotification.type === 'success'
+                    ? 'bg-green-500/20 text-green-300'
+                    : 'bg-red-500/20 text-red-300'
+                }`}
+              >
+                {likeNotification.type === 'success' ? <MdCheckCircle size={20} /> : <MdError size={20} />}
+              </span>
+              <p className="text-sm font-semibold leading-none">{likeNotification.message}</p>
+            </div>
+          </div>
+        )}
 
         <Navbar />
 
@@ -203,8 +321,21 @@ export default function MoviePage({ params }) {
                   <FaPlus />
                 </button>
 
-                <button className="bg-white/10 p-3 rounded-lg hover:bg-white/20">
-                  <AiOutlineLike />
+                <button
+                  onClick={handleLikeMovie}
+                  disabled={isLiking}
+                  className={`flex items-center gap-2 rounded-lg p-3 transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                    isLiked
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : 'bg-white/10 hover:bg-white/20'
+                  }`}
+                  aria-label={isLiked ? 'Movie liked' : 'Like movie'}
+                  title={isLiked ? 'Movie liked' : 'Like movie'}
+                >
+                  {isLiked ? <AiFillLike /> : <AiOutlineLike />}
+                  {typeof likesCount === 'number' && (
+                    <span className="text-sm font-medium">{likesCount}</span>
+                  )}
                 </button>
               </div>
 
