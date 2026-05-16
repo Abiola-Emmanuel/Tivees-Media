@@ -51,7 +51,7 @@ const CategoriesSection = () => {
     const fetchGenres = async () => {
       try {
         const authToken = getStoredAuthToken()
-        console.log('Categories authToken:', authToken)
+        // console.log('Categories authToken:', authToken)
 
         if (!authToken) {
           setCategories([])
@@ -66,7 +66,7 @@ const CategoriesSection = () => {
           signal: controller.signal
         });
 
-        console.log('Categories response:', response.data)
+        // console.log('Categories response:', response.data)
 
         if (isMounted && response.data.status === 'SUCCESS') {
           const dynamicCategories = response.data.categories.map((category) => {

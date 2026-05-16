@@ -69,6 +69,8 @@ const Movies = () => {
           headers
         })
 
+        console.log(response.data.categories)
+
         const normalizedCategories = normalizeMovieCategories(
           response.data?.categories || response.data?.data?.categories || response.data?.data
         )
@@ -78,20 +80,20 @@ const Movies = () => {
           return
         }
 
-        const fallbackResponse = await axios.get(`${url}/api/v1/users/users-moviesGenre`, {
-          headers
-        })
+        // const fallbackResponse = await axios.get(`${url}/api/v1/users/users-moviesGenre`, {
+        //   headers
+        // })
 
-        const fallbackCategories = normalizeMovieCategories(
-          fallbackResponse.data?.categories ||
-          fallbackResponse.data?.genres ||
-          fallbackResponse.data?.data?.categories ||
-          fallbackResponse.data?.data
-        )
+        // const fallbackCategories = normalizeMovieCategories(
+        //   fallbackResponse.data?.categories ||
+        //   fallbackResponse.data?.genres ||
+        //   fallbackResponse.data?.data?.categories ||
+        //   fallbackResponse.data?.data
+        // )
 
-        if (fallbackCategories.length > 0) {
-          setMovieCategories(fallbackCategories)
-        }
+        // if (fallbackCategories.length > 0) {
+        //   setMovieCategories(fallbackCategories)
+        // }
       } catch (error) {
         console.error('Error fetching movies by category:', error)
       } finally {
