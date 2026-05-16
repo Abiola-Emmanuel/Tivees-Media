@@ -238,18 +238,16 @@ export default function MoviePage({ params }) {
         {likeNotification && (
           <div className="fixed right-4 top-6 z-50 w-fit max-w-[calc(100vw-2rem)] animate-in slide-in-from-top-3 fade-in duration-200">
             <div
-              className={`flex min-w-52 items-center gap-3 rounded-xl border px-3 py-2.5 shadow-2xl backdrop-blur-md ${
-                likeNotification.type === 'success'
+              className={`flex min-w-52 items-center gap-3 rounded-xl border px-3 py-2.5 shadow-2xl backdrop-blur-md ${likeNotification.type === 'success'
                   ? 'border-green-400/30 bg-black/85 text-green-100 shadow-green-950/30'
                   : 'border-red-400/30 bg-black/85 text-red-100 shadow-red-950/30'
-              }`}
+                }`}
             >
               <span
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                  likeNotification.type === 'success'
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${likeNotification.type === 'success'
                     ? 'bg-green-500/20 text-green-300'
                     : 'bg-red-500/20 text-red-300'
-                }`}
+                  }`}
               >
                 {likeNotification.type === 'success' ? <MdCheckCircle size={20} /> : <MdError size={20} />}
               </span>
@@ -317,18 +315,13 @@ export default function MoviePage({ params }) {
                   Create Watch Party
                 </button>
 
-                <button className="bg-white/10 p-3 rounded-lg hover:bg-white/20">
-                  <FaPlus />
-                </button>
-
                 <button
                   onClick={handleLikeMovie}
                   disabled={isLiking}
-                  className={`flex items-center gap-2 rounded-lg p-3 transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                    isLiked
+                  className={`flex items-center gap-2 rounded-lg p-3 transition disabled:cursor-not-allowed disabled:opacity-60 ${isLiked
                       ? 'bg-red-600 text-white hover:bg-red-700'
                       : 'bg-white/10 hover:bg-white/20'
-                  }`}
+                    }`}
                   aria-label={isLiked ? 'Movie liked' : 'Like movie'}
                   title={isLiked ? 'Movie liked' : 'Like movie'}
                 >
