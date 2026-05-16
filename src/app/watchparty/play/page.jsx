@@ -183,6 +183,7 @@ const WatchPartyPlayer = () => {
 
   const partyId = searchParams.get('partyId');
   const cfid = searchParams.get('cfid');
+  const movieId = searchParams.get('movieId');
   const userIdParam = searchParams.get('userId');
 
   const [isHost, setIsHost] = useState(false);
@@ -282,6 +283,65 @@ const WatchPartyPlayer = () => {
     }
     return true;
   };
+
+  const redirectGuestsAfterHostLeaves = () => {
+    if (isHostRef.current) return;
+
+    router.replace(movieId ? `/movies/${movieId}` : '/movies');
+  };
+
+  const isHostLeaveMessage = (payload = {}) => {
+    return [
+      'host-left',
+      'host-disconnected',
+      'watchparty-ended',
+      'watchparty-closed',
+      'party-ended',
+      'party-closed'
+    ].includes(payload.type);
+  };
+
+  const didHostLeave = (payload = {}) => {
+    const knownHostId = hostIdRef.current;
+
+    if (!knownHostId) {
+      return false;
+    }
+
+    return [
+      getSocketPeerId(payload),
+      getSocketUserId(payload),
+      payload.hostId,
+      payload.senderId,
+      payload.senderUserId,
+      payload.userId,
+      payload.peerId
+    ].some((candidate) => candidate && candidate === knownHostId);
+  };
+
+  useEffect(() => {
+    const announceHostLeaving = () => {
+      if (!isHostRef.current || wsRef.current?.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      wsRef.current.send(JSON.stringify({
+        type: 'host-left',
+        partyId,
+        userId,
+        hostId: userId,
+        senderId: userId,
+        senderUserId: userId,
+        peerId: myPeerIdRef.current || userId
+      }));
+    };
+
+    window.addEventListener('beforeunload', announceHostLeaving);
+
+    return () => {
+      window.removeEventListener('beforeunload', announceHostLeaving);
+    };
+  }, [partyId, userId]);
 
   const rememberAttendeeName = (nextUserId = '', nextUserName = '') => {
     if (!nextUserId || !isRealUserName(nextUserName)) {
@@ -930,6 +990,12 @@ const WatchPartyPlayer = () => {
       if (isWebRtcMessage) {
         console.log('[WebRTC]', data.type, 'from:', getSocketPeerId(data) || 'UNKNOWN', '-> target:', getSocketTargetPeerId(data) || getSocketTargetUserId(data) || 'broadcast');
       }
+
+      if (isHostLeaveMessage(data)) {
+        redirectGuestsAfterHostLeaves();
+        return;
+      }
+
       if (data.type === 'sync') {
         const peerId = data.peerId || data.myPeerId || myPeerIdRef.current || userId;
         const userIsHost = data.hostId === userId || data.hostId === peerId;
@@ -1074,6 +1140,11 @@ const WatchPartyPlayer = () => {
       }
 
       if (data.type === 'peer-left' || data.type === 'camera-off' || data.type === 'user-left' || data.type === 'participant-left') {
+        if (didHostLeave(data)) {
+          redirectGuestsAfterHostLeaves();
+          return;
+        }
+
         removeRemotePeer(getSocketPeerId(data));
       }
 
@@ -1106,6 +1177,18 @@ const WatchPartyPlayer = () => {
     };
 
     return () => {
+      if (isHostRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'host-left',
+          partyId,
+          userId,
+          hostId: userId,
+          senderId: userId,
+          senderUserId: userId,
+          peerId: myPeerIdRef.current || userId
+        }));
+      }
+
       if (wsRef.current) wsRef.current.close();
       Object.values(peersRef.current).forEach((pc) => pc.close());
       peersRef.current = {};
@@ -1128,7 +1211,7 @@ const WatchPartyPlayer = () => {
   }, [partyId, cfid, userId, playerReady]);
 
   const handleShareParty = () => {
-    const shareUrl = `${window.location.origin}/watchparty/play?partyId=${partyId}&cfid=${cfid}`;
+    const shareUrl = `${window.location.origin}/watchparty/play?partyId=${partyId}&cfid=${cfid}${movieId ? `&movieId=${movieId}` : ''}`;
     navigator.clipboard.writeText(shareUrl);
     alert('Watch party link copied!');
   };

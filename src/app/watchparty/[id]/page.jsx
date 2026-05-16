@@ -57,7 +57,7 @@ const WatchParty = () => {
 
   const handleCopyLink = () => {
     if (partyId && cfid) {
-      const shareUrl = `${window.location.origin}/watchparty/play?partyId=${partyId}&cfid=${cfid}`;
+      const shareUrl = `${window.location.origin}/watchparty/play?partyId=${partyId}&cfid=${cfid}&movieId=${movie?._id || params.id}`;
       navigator.clipboard.writeText(shareUrl);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
@@ -72,12 +72,12 @@ const WatchParty = () => {
     const user = userString ? JSON.parse(userString) : null;
     const userId = user?._id;
 
-    console.log('=== Creating Watch Party ===');
-    console.log('movieId:', movie._id);
-    console.log('hostId (userId):', userId);
-    console.log('name (partyName):', partyName);
-    console.log('movie.uid:', movie.uid);
-    console.log('authToken:', authToken ? 'Present' : 'Missing');
+    // console.log('=== Creating Watch Party ===');
+    // console.log('movieId:', movie._id);
+    // console.log('hostId (userId):', userId);
+    // console.log('name (partyName):', partyName);
+    // console.log('movie.uid:', movie.uid);
+    // console.log('authToken:', authToken ? 'Present' : 'Missing');
 
     if (!partyName.trim()) {
       alert('Please enter a watch party name');
@@ -129,7 +129,7 @@ const WatchParty = () => {
 
   const handleStartWatching = () => {
     if (partyId && cfid) {
-      const playUrl = `/watchparty/play?partyId=${partyId}&cfid=${cfid}`;
+      const playUrl = `/watchparty/play?partyId=${partyId}&cfid=${cfid}&movieId=${movie?._id || params.id}`;
       router.push(playUrl);
     }
   };
