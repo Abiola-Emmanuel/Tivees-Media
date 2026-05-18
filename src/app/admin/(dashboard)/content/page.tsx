@@ -166,6 +166,15 @@ const GENRE_OPTIONS = [
   "K‑Drama",
 ];
 
+const TAG_OPTIONS = [
+  "Top Rated",
+  "Trending",
+  "Latest",
+  "Hot",
+  "For You",
+  "Must Watch",
+];
+
 export default function ContentPage() {
   // View state
   const [activeView, setActiveView] = useState<"newMovie" | "movieList">(
@@ -613,8 +622,8 @@ export default function ContentPage() {
           <button
             onClick={() => setActiveView("newMovie")}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${activeView === "newMovie"
-                ? "bg-[#1a1a1a] border border-gray-800 text-red-500"
-                : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
+              ? "bg-[#1a1a1a] border border-gray-800 text-red-500"
+              : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
               }`}
           >
             <Plus size={18} />
@@ -623,8 +632,8 @@ export default function ContentPage() {
           <button
             onClick={() => setActiveView("movieList")}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${activeView === "movieList"
-                ? "bg-[#1a1a1a] border border-gray-800 text-white"
-                : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
+              ? "bg-[#1a1a1a] border border-gray-800 text-white"
+              : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
               }`}
           >
             <List size={18} />
@@ -717,9 +726,15 @@ export default function ContentPage() {
                       name="tags"
                       value={formData.tags}
                       onChange={handleInputChange}
+                      list="tag-options"
                       placeholder="Add tags (comma‑separated)"
                       className="w-full bg-[#0f0f0f] border border-gray-800 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-gray-700"
                     />
+                    <datalist id="tag-options">
+                      {TAG_OPTIONS.map((tag) => (
+                        <option key={tag} value={tag} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
 
@@ -1349,8 +1364,8 @@ export default function ContentPage() {
                   <button
                     onClick={() => setCurrentPage(1)}
                     className={`px-3 py-1.5 rounded text-sm transition-colors ${currentPage === 1
-                        ? "bg-blue-600 text-white"
-                        : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
+                      ? "bg-blue-600 text-white"
+                      : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
                       }`}
                   >
                     1
@@ -1358,8 +1373,8 @@ export default function ContentPage() {
                   <button
                     onClick={() => setCurrentPage(2)}
                     className={`px-3 py-1.5 rounded text-sm transition-colors ${currentPage === 2
-                        ? "bg-blue-600 text-white"
-                        : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
+                      ? "bg-blue-600 text-white"
+                      : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
                       }`}
                   >
                     2
@@ -1367,8 +1382,8 @@ export default function ContentPage() {
                   <button
                     onClick={() => setCurrentPage(3)}
                     className={`px-3 py-1.5 rounded text-sm transition-colors ${currentPage === 3
-                        ? "bg-blue-600 text-white"
-                        : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
+                      ? "bg-blue-600 text-white"
+                      : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
                       }`}
                   >
                     3
@@ -1377,8 +1392,8 @@ export default function ContentPage() {
                   <button
                     onClick={() => setCurrentPage(totalPages)}
                     className={`px-3 py-1.5 rounded text-sm transition-colors ${currentPage === totalPages
-                        ? "bg-blue-600 text-white"
-                        : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
+                      ? "bg-blue-600 text-white"
+                      : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
                       }`}
                   >
                     {totalPages}

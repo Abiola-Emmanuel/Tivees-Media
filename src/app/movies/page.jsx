@@ -77,6 +77,7 @@ const Movies = () => {
 
         if (normalizedCategories.length > 0) {
           setMovieCategories(normalizedCategories)
+          console.log(normalizedCategories[0].movies[0].tags)
           return
         }
 
@@ -231,7 +232,7 @@ const Movies = () => {
             {movieCategories.map((category) => (
               <MovieRow
                 key={category.category}
-                title={category.category}
+                title={category.movies[0]?.tags}
                 movies={category.movies.slice(0, 5)}
               />
             ))}

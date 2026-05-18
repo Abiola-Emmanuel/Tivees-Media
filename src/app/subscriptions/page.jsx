@@ -3,10 +3,9 @@
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
-import SubscriptionMobile from "@/components/SubscriptionMobile";
-import FreeTrial from "@/components/FreeTrial";
 import Footer from "@/components/Footer";
 import { useRouter } from 'next/navigation';
+import axios from "axios";
 const PayButton = dynamic(() => import("@/components/PaystackButton"), {
   ssr: false,
 });
@@ -14,6 +13,11 @@ const PayButton = dynamic(() => import("@/components/PaystackButton"), {
 const Subscription = () => {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const [plans, setPlans] = useState([])
+  const [plansLoading, setPlansLoading] = useState(true)
+  const [plansError, setPlansError] = useState("")
+
+  const url = process.env.NEXT_PUBLIC_BACKEND_URL
 
   useEffect(() => {
     const authToken = localStorage.getItem('authToken');
@@ -28,32 +32,33 @@ const Subscription = () => {
     setIsAuthenticated(true);
   }, [router]);
 
-  const [billing] = useState("monthly");
   const [paymentStatus, setPaymentStatus] = useState("");
 
-  const plans = [
-    {
-      name: "Basic Plan",
-      monthly: 1200,
-      yearly: 10000,
-      description:
-        "Enjoy an extensive library of movies and shows, featuring a range of content, including recently released titles.",
-    },
-    {
-      name: "Standard Plan",
-      monthly: 1700,
-      yearly: 18000,
-      description:
-        "Access to a widest selection of movies and shows, including all new releases and Offline Viewing",
-    },
-    {
-      name: "Premium Plan",
-      monthly: 2000,
-      yearly: 18000,
-      description:
-        "Access to a widest selection of movies and shows, including all new releases and Offline Viewing",
-    },
-  ];
+  useEffect(() => {
+    const fetchPlans = async () => {
+      const authToken = localStorage.getItem('authToken')
+      setPlansLoading(true)
+      setPlansError("")
+
+      try {
+        const response = await axios.get(`${url}/api/v1/users/payments`, {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        })
+
+        setPlans(Array.isArray(response.data?.paymentPlans) ? response.data.paymentPlans : [])
+        console.log(response.data)
+      } catch (err) {
+        console.error('Error fetching payment plans', err)
+        setPlansError("Unable to load payment plans. Please try again.")
+      } finally {
+        setPlansLoading(false)
+      }
+    }
+
+    fetchPlans()
+  }, [url])
 
   if (isAuthenticated === false) {
     return (
@@ -71,11 +76,11 @@ const Subscription = () => {
 
         <div className="text-white py-12 sm:py-14 mt-30 md:py-16 px-4 sm:px-6 md:px-10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 sm:mb-10 md:mb-12 gap-6">
-            <div>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2 sm:mb-3">
+            <div className=" text-center w-full">
+              <h2 className="text-2xl  sm:text-3xl md:text-4xl font-semibold mb-2 sm:mb-3">
                 Choose the plan that&apos;s right for you
               </h2>
-              <p className="text-gray-400 text-sm sm:text-base max-w-xl">
+              <p className="text-gray-400 text-sm sm:text-base mx-auto max-w-xl">
                 Join TiveesMedia and select from our flexible subscription options
                 tailored to suit your viewing preferences. Get ready for non-stop
                 entertainment!
@@ -89,42 +94,81 @@ const Subscription = () => {
             </div>
           ) : null}
 
-          <div className="grid md:grid-cols-3 gap-5 sm:gap-6">
-            {plans.map((plan, index) => {
-              const price = billing === "monthly" ? plan.monthly : plan.yearly;
+          <div className="lg:w-[50%] lg:mx-auto">
+            {plansLoading ? (
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-8 text-center text-gray-400">
+                Loading payment plans...
+              </div>
+            ) : plansError ? (
+              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-8 text-center text-red-100">
+                {plansError}
+              </div>
+            ) : plans.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-8 text-center text-gray-400">
+                No active payment plans are available right now.
+              </div>
+            ) : (
+              plans.map((plan) => {
+                const features = Array.isArray(plan.features) ? plan.features : [];
+                const durationLabel = plan.durationInDays === 1 ? "day" : "days";
 
-              return (
-                <div
-                  key={index}
-                  className="relative bg-black/10 border border-black/15 rounded-2xl p-5 sm:p-6 md:p-8 overflow-hidden flex flex-col"
-                >
-                  <div className="absolute inset-0 bg-black/10 opacity-80"></div>
+                return (
+                  <div
+                    key={plan._id}
+                    className="relative bg-black/10 border border-white/10 rounded-2xl p-5 sm:p-6 md:p-8 overflow-hidden flex flex-col"
+                  >
+                    <div className="relative z-10 flex flex-col h-full">
+                      <div className="mb-4 flex items-start justify-between gap-4">
+                        <div>
+                          <h3 className="text-lg sm:text-xl md:text-2xl mb-1">{plan.name}</h3>
+                          <p className="text-neutral-400 text-sm sm:text-base">
+                            Valid for {plan.durationInDays} {durationLabel}
+                          </p>
+                        </div>
 
-                  <div className="relative z-10 flex flex-col h-full">
-                    <h3 className="text-lg sm:text-xl md:text-2xl mb-2 sm:mb-3">{plan.name}</h3>
+                        {plan.status ? (
+                          <span className="shrink-0 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-100">
+                            {plan.status}
+                          </span>
+                        ) : null}
+                      </div>
 
-                    <p className="text-neutral-400 text-sm sm:text-base mb-4 sm:mb-6">
-                      {plan.description}
-                    </p>
+                      <div className="mb-6 sm:mb-8">
+                        <span className="text-2xl sm:text-3xl font-semibold">
+                          NGN {Number(plan.price || 0).toLocaleString()}
+                        </span>
+                        <span className="text-gray-400 text-sm ml-1">
+                          / {plan.durationInDays} {durationLabel}
+                        </span>
+                      </div>
 
-                    <div className="mb-6 sm:mb-8">
-                      <span className="text-2xl sm:text-3xl font-semibold">
-                        ₦{price.toLocaleString()}
-                      </span>
-                      <span className="text-gray-400 text-sm ml-1">/month</span>
-                    </div>
+                      {features.length > 0 ? (
+                        <ul className="mb-6 space-y-3 text-sm sm:text-base text-neutral-300">
+                          {features.map((feature) => (
+                            <li key={feature} className="flex gap-3">
+                              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500"></span>
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
 
-                    <div className="flex gap-3 sm:gap-4 mt-auto">
-                      <PayButton onStatusChange={setPaymentStatus} />
+                      <div className="flex gap-3 sm:gap-4 mt-auto">
+                        <PayButton
+                          amount={plan.price}
+                          planName={plan.name}
+                          onStatusChange={setPaymentStatus}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 
-        <div className="hidden md:block max-w-7xl mx-auto px-4 py-16 text-white font-sans">
+        {/* <div className="hidden md:block max-w-7xl mx-auto px-4 py-16 text-white font-sans">
           <div className="mb-10 max-w-4xl">
             <h2 className="text-white text-2xl mb-4">Compare our plans and find the right one for you</h2>
             <p className="text-gray-400 text-md">
@@ -206,11 +250,11 @@ const Subscription = () => {
               <div className="p-6">Yes, up to 6 family members</div>
             </div>
           </div>
-        </div>
-
+        </div> */}
+        {/* 
         <SubscriptionMobile />
-        <FreeTrial />
-      </div>
+        <FreeTrial /> */}
+      </div >
 
       <Footer />
     </>

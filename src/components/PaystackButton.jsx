@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { usePaystackPayment } from "react-paystack";
 
 const getStoredCustomerEmail = () => {
@@ -23,18 +23,17 @@ const getStoredCustomerEmail = () => {
   }
 };
 
-const PaystackButton = ({ onStatusChange }) => {
-  const [customerEmail, setCustomerEmail] = useState("");
-
-  useEffect(() => {
-    setCustomerEmail(getStoredCustomerEmail());
-  }, []);
+const PaystackButton = ({ amount = 0, planName = "plan", onStatusChange }) => {
+  const [customerEmail] = useState(getStoredCustomerEmail);
 
   const config = {
     reference: new Date().getTime().toString(),
     email: customerEmail || "user@email.com",
-    amount: 5000 * 100,
+    amount: Math.round(Number(amount || 0) * 100),
     publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+    metadata: {
+      planName,
+    },
   };
 
   const initializePayment = usePaystackPayment(config);
@@ -48,10 +47,15 @@ const PaystackButton = ({ onStatusChange }) => {
           return;
         }
 
+        if (!config.amount) {
+          onStatusChange("This payment plan does not have a valid price.");
+          return;
+        }
+
         initializePayment(
           () => {
             console.log("Payment success");
-            onStatusChange("Payment success");
+            onStatusChange(`Payment successful for ${planName}`);
           },
           () => {
             console.log("Payment closed");
@@ -61,7 +65,7 @@ const PaystackButton = ({ onStatusChange }) => {
       }}
       className="flex-1 bg-red-600 hover:bg-red-700 py-2 sm:py-2.5 md:py-3 rounded-lg transition cursor-pointer text-sm sm:text-base"
     >
-      Pay Now
+      Pay for {planName}
     </button>
   );
 };
