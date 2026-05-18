@@ -10,14 +10,14 @@ import { motion } from 'framer-motion'
 import MovieRow from '@/components/MovieRow'
 import { useRouter } from 'next/navigation'
 
-const normalizeMovieCategories = (payload = []) => {
+const normalizeMovieTags = (payload = []) => {
   if (!Array.isArray(payload)) {
     return []
   }
 
   return payload
     .map((item) => {
-      const title = item?.category || item?.genre || item?.name || ''
+      const title = item?.tag || item?.tags || item?.category || item?.name || ''
       const movies = Array.isArray(item?.movies) ? item.movies : []
 
       if (!title || movies.length === 0) {
@@ -58,26 +58,23 @@ const Movies = () => {
   }, [router])
 
   useEffect(() => {
-    const fetchMoviesByCategory = async () => {
+    const fetchMoviesByTag = async () => {
       try {
         const authToken = localStorage.getItem('authToken')
         const headers = {
           Authorization: `Bearer ${authToken}`
         }
 
-        const response = await axios.get(`${url}/api/v1/users/users-moviesCategory`, {
+        const response = await axios.get(`${url}/api/v1/users/users-moviesTag`, {
           headers
         })
 
-        console.log(response.data.categories)
-
-        const normalizedCategories = normalizeMovieCategories(
-          response.data?.categories || response.data?.data?.categories || response.data?.data
+        const normalizedTags = normalizeMovieTags(
+          response.data?.tags || response.data?.data?.tags || response.data?.data
         )
 
-        if (normalizedCategories.length > 0) {
-          setMovieCategories(normalizedCategories)
-          console.log(normalizedCategories[0].movies[0].tags)
+        if (normalizedTags.length > 0) {
+          setMovieCategories(normalizedTags)
           return
         }
 
@@ -96,13 +93,13 @@ const Movies = () => {
         //   setMovieCategories(fallbackCategories)
         // }
       } catch (error) {
-        console.error('Error fetching movies by category:', error)
+        console.error('Error fetching movies by tag:', error)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchMoviesByCategory()
+    fetchMoviesByTag()
   }, [url])
 
   const handleSearchChange = (e) => {
@@ -232,7 +229,7 @@ const Movies = () => {
             {movieCategories.map((category) => (
               <MovieRow
                 key={category.category}
-                title={category.movies[0]?.tags}
+                title={category.category}
                 movies={category.movies.slice(0, 5)}
               />
             ))}

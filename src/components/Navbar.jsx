@@ -1,8 +1,9 @@
 "use client"
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import axios from 'axios'
 import { CiSearch } from "react-icons/ci";
 import { IoIosNotificationsOutline } from "react-icons/io";
 import { HiMenuAlt3 } from "react-icons/hi";
@@ -12,6 +13,12 @@ import { useEffect, useCallback } from 'react';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState('');
+  const notificationRef = useRef(null);
+  const url = process.env.NEXT_PUBLIC_BACKEND_URL;
 
   const navLinks = [
     { name: 'Home', href: '/main' },
@@ -44,12 +51,82 @@ const Navbar = () => {
         searchElement.querySelector('input')?.focus();
       }
     }, 100);
-  }, [router]);
+  }, []);
 
   const handleSearchClick = () => {
     router.push('/movies');
     scrollToSearch();
   };
+
+  const toggleNotifications = () => {
+    setIsNotificationOpen((current) => !current);
+  };
+
+  const isNotificationUnread = (notification) => notification.status?.toLowerCase() === 'unseen';
+
+  const unreadCount = notifications.filter(isNotificationUnread).length;
+
+  const formatNotificationDate = (dateValue) => {
+    if (!dateValue) {
+      return '';
+    }
+
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const fetchNotifications = useCallback(async ({ markAsSeen = false, logInitialResponse = false } = {}) => {
+    const authToken = localStorage.getItem('authToken');
+
+    try {
+      setNotificationsLoading(true);
+      setNotificationsError('');
+
+      const response = await axios.get(`${url}/api/v1/users/notification`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`
+        }
+      });
+
+      if (logInitialResponse) {
+        console.log('Initial notifications response:', response.data);
+      }
+
+      const fetchedNotifications = Array.isArray(response.data?.notifications) ? response.data.notifications : [];
+      setNotifications(fetchedNotifications);
+
+      if (markAsSeen && fetchedNotifications.some(isNotificationUnread)) {
+        await axios.patch(`${url}/api/v1/users/notification`, {
+          status: 'seen'
+        }, {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        });
+
+        setNotifications((currentNotifications) => (
+          currentNotifications.map((notification) => ({
+            ...notification,
+            status: 'seen'
+          }))
+        ));
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      setNotificationsError('Unable to load notifications.');
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [url]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -61,6 +138,27 @@ const Navbar = () => {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [scrollToSearch]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setIsNotificationOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications({ logInitialResponse: true });
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    if (isNotificationOpen) {
+      fetchNotifications({ markAsSeen: true });
+    }
+  }, [fetchNotifications, isNotificationOpen]);
 
   // Menu animation variants
   const menuVariants = {
@@ -130,7 +228,101 @@ const Navbar = () => {
               <CiSearch
                 onClick={handleSearchClick}
                 className='text-white hidden md:flex text-xl md:text-2xl cursor-pointer hover:text-red-500 transition-colors' />
-              <IoIosNotificationsOutline className='text-white hidden md:flex text-xl md:text-2xl cursor-pointer hover:text-red-500 transition-colors' />
+              <div ref={notificationRef} className='relative hidden md:block'>
+                <button
+                  type='button'
+                  onClick={toggleNotifications}
+                  className='flex text-white text-xl md:text-2xl cursor-pointer hover:text-red-500 transition-colors'
+                  aria-label='Show notifications'
+                  aria-expanded={isNotificationOpen}
+                >
+                  <IoIosNotificationsOutline />
+                  {unreadCount > 0 ? (
+                    <span className='absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-none text-white'>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  ) : null}
+                </button>
+
+                <AnimatePresence>
+                  {isNotificationOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                      transition={{ duration: 0.18 }}
+                      className='absolute right-0 top-9 w-96 rounded-xl border border-white/10 bg-[#0F0F0F] text-white shadow-2xl shadow-black/40'
+                    >
+                      <div className='flex items-center justify-between gap-4 border-b border-white/10 px-4 py-3'>
+                        <div>
+                          <p className='text-sm font-semibold'>Notifications</p>
+                          <p className='text-xs text-neutral-400'>
+                            {unreadCount > 0 ? `${unreadCount} unread update${unreadCount === 1 ? '' : 's'}` : 'All caught up'}
+                          </p>
+                        </div>
+                        <div className='rounded-full border border-white/10 px-2.5 py-1 text-xs text-neutral-300'>
+                          {notifications.length}
+                        </div>
+                      </div>
+
+                      <div className='max-h-96 overflow-y-auto'>
+                        {notificationsLoading ? (
+                          <div className='px-4 py-8 text-center text-sm text-neutral-400'>
+                            Loading notifications...
+                          </div>
+                        ) : notificationsError ? (
+                          <div className='px-4 py-8 text-center text-sm text-red-100'>
+                            {notificationsError}
+                          </div>
+                        ) : notifications.length === 0 ? (
+                          <div className='px-4 py-8 text-center text-sm text-neutral-400'>
+                            No notifications yet.
+                          </div>
+                        ) : (
+                          notifications.slice(0, 8).map((notification) => {
+                            const isUnread = isNotificationUnread(notification);
+
+                            return (
+                              <div
+                                key={notification._id}
+                                className='border-b border-white/10 px-4 py-3 last:border-b-0'
+                              >
+                                <div className='mb-1 flex items-start justify-between gap-3'>
+                                  <div className='flex min-w-0 items-start gap-2'>
+                                    {isUnread ? (
+                                      <span className='mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-500'></span>
+                                    ) : null}
+                                    <p className='line-clamp-1 text-sm font-medium'>
+                                      {notification.title}
+                                    </p>
+                                  </div>
+                                  <span className='shrink-0 text-[11px] text-neutral-500'>
+                                    {formatNotificationDate(notification.timeAgo)}
+                                  </span>
+                                </div>
+
+                                <p className='line-clamp-2 text-xs leading-5 text-neutral-400'>
+                                  {notification.message}
+                                </p>
+
+                                <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${isUnread ? 'bg-red-500/10 text-red-100' : 'bg-white/5 text-neutral-400'}`}>
+                                  {notification.status}
+                                </span>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* {!notificationsLoading && notifications.length > 8 ? (
+                        <div className='border-t border-white/10 px-4 py-3 text-center text-xs text-neutral-400'>
+                          Showing 8 of {notifications.length} notifications
+                        </div>
+                      ) : null} */}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               <button
                 onClick={toggleMenu}
