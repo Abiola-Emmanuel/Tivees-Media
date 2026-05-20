@@ -48,6 +48,9 @@ const PaystackButton = ({ amount = 0, planName = "plan", onStatusChange, onSubsc
   };
 
   const initializePayment = usePaystackPayment(config);
+  const buttonClassName = hasActiveSubscription
+    ? "flex-1 bg-green-600 py-2 sm:py-2.5 md:py-3 rounded-lg transition text-sm sm:text-base text-white disabled:cursor-not-allowed disabled:bg-green-600 disabled:text-white"
+    : "flex-1 bg-red-600 hover:bg-red-700 py-2 sm:py-2.5 md:py-3 rounded-lg transition cursor-pointer text-sm sm:text-base disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-300";
 
   return (
     <button
@@ -141,7 +144,7 @@ const PaystackButton = ({ amount = 0, planName = "plan", onStatusChange, onSubsc
           },
         });
       }}
-      className="flex-1 bg-red-600 hover:bg-red-700 py-2 sm:py-2.5 md:py-3 rounded-lg transition cursor-pointer text-sm sm:text-base disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-300"
+      className={buttonClassName}
     >
       {hasActiveSubscription
         ? "Subscription active"

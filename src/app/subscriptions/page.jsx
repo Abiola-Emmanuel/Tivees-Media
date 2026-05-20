@@ -157,7 +157,7 @@ const Subscription = () => {
 
                         {currentUser ? (
                           <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${hasActiveSubscription
-                            ? "border-red-500/40 bg-red-500/10 text-red-100"
+                            ? "border-green-500/40 bg-green-500/10 text-green-100"
                             : "border-white/10 bg-white/5 text-neutral-400"
                             }`}>
                             {hasActiveSubscription ? "Active" : "Inactive"}
