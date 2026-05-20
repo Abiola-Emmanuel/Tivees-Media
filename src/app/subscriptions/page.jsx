@@ -13,6 +13,7 @@ const PayButton = dynamic(() => import("@/components/PaystackButton"), {
 const Subscription = () => {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [plans, setPlans] = useState([])
   const [plansLoading, setPlansLoading] = useState(true)
   const [plansError, setPlansError] = useState("")
@@ -29,10 +30,38 @@ const Subscription = () => {
       return;
     }
 
+    try {
+      setCurrentUser(JSON.parse(userString));
+    } catch (error) {
+      console.error("Unable to parse stored user:", error);
+    }
+
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await axios.get(`${url}/api/v1/users/current-user`, {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        });
+
+        const updatedUser = response.data?.user;
+
+        if (updatedUser) {
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+          setCurrentUser(updatedUser);
+        }
+      } catch (error) {
+        console.error("Unable to fetch current user:", error);
+      }
+    };
+
     setIsAuthenticated(true);
-  }, [router]);
+    fetchCurrentUser();
+  }, [router, url]);
 
   const [paymentStatus, setPaymentStatus] = useState("");
+  const userSubscriptionStatus = currentUser?.subscriptionStatus || "";
+  const hasActiveSubscription = userSubscriptionStatus.toLowerCase() === "active";
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -126,9 +155,12 @@ const Subscription = () => {
                           </p>
                         </div>
 
-                        {plan.status ? (
-                          <span className="shrink-0 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-100">
-                            {plan.status}
+                        {currentUser ? (
+                          <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${hasActiveSubscription
+                            ? "border-red-500/40 bg-red-500/10 text-red-100"
+                            : "border-white/10 bg-white/5 text-neutral-400"
+                            }`}>
+                            {hasActiveSubscription ? "Active" : "Inactive"}
                           </span>
                         ) : null}
                       </div>
@@ -158,6 +190,7 @@ const Subscription = () => {
                           amount={plan.price}
                           planName={plan.name}
                           onStatusChange={setPaymentStatus}
+                          onSubscriptionChange={setCurrentUser}
                         />
                       </div>
                     </div>

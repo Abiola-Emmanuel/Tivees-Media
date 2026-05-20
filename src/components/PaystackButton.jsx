@@ -30,7 +30,7 @@ const getStoredCustomer = () => {
   }
 };
 
-const PaystackButton = ({ amount = 0, planName = "plan", onStatusChange }) => {
+const PaystackButton = ({ amount = 0, planName = "plan", onStatusChange, onSubscriptionChange }) => {
   const [customer, setCustomer] = useState(getStoredCustomer);
   const [isPaymentUpdating, setIsPaymentUpdating] = useState(false);
   const hasActiveSubscription = customer.subscriptionStatus?.toLowerCase() === "active";
@@ -116,6 +116,7 @@ const PaystackButton = ({ amount = 0, planName = "plan", onStatusChange }) => {
                   userId: updatedUser.userId || updatedUser.id || updatedUser._id || "",
                   subscriptionStatus: updatedUser.subscriptionStatus || "",
                 });
+                onSubscriptionChange?.(updatedUser);
               }
 
               onStatusChange(`Payment successful for ${planName}`);
