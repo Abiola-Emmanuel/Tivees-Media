@@ -18,7 +18,6 @@ import Footer from '@/components/Footer';
 
 export default function MoviePage({ params }) {
   const { id } = use(params);
-  console.log('Movie ID from params:', id);
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState([]);
@@ -44,6 +43,8 @@ export default function MoviePage({ params }) {
           }
         );
 
+        console.log("Movie details response:", response);
+
         if (response.data.status === "SUCCESS") {
           setMovie(response.data.movie);
           const initialLikesCount =
@@ -59,8 +60,18 @@ export default function MoviePage({ params }) {
 
 
       } catch (err) {
-        console.error("Error fetching movie details:", err);
-        setError("Failed to load movie details");
+        console.error("Movie details error response:", {
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          data: err.response?.data,
+          url: err.config?.url,
+          method: err.config?.method,
+        });
+        setError(
+          err.response?.data?.message ||
+          err.response?.data?.error ||
+          "Failed to load movie details"
+        );
       } finally {
         setLoading(false);
       }
@@ -239,14 +250,14 @@ export default function MoviePage({ params }) {
           <div className="fixed right-4 top-6 z-50 w-fit max-w-[calc(100vw-2rem)] animate-in slide-in-from-top-3 fade-in duration-200">
             <div
               className={`flex min-w-52 items-center gap-3 rounded-xl border px-3 py-2.5 shadow-2xl backdrop-blur-md ${likeNotification.type === 'success'
-                  ? 'border-green-400/30 bg-black/85 text-green-100 shadow-green-950/30'
-                  : 'border-red-400/30 bg-black/85 text-red-100 shadow-red-950/30'
+                ? 'border-green-400/30 bg-black/85 text-green-100 shadow-green-950/30'
+                : 'border-red-400/30 bg-black/85 text-red-100 shadow-red-950/30'
                 }`}
             >
               <span
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${likeNotification.type === 'success'
-                    ? 'bg-green-500/20 text-green-300'
-                    : 'bg-red-500/20 text-red-300'
+                  ? 'bg-green-500/20 text-green-300'
+                  : 'bg-red-500/20 text-red-300'
                   }`}
               >
                 {likeNotification.type === 'success' ? <MdCheckCircle size={20} /> : <MdError size={20} />}
@@ -319,8 +330,8 @@ export default function MoviePage({ params }) {
                   onClick={handleLikeMovie}
                   disabled={isLiking}
                   className={`flex items-center gap-2 rounded-lg p-3 transition disabled:cursor-not-allowed disabled:opacity-60 ${isLiked
-                      ? 'bg-red-600 text-white hover:bg-red-700'
-                      : 'bg-white/10 hover:bg-white/20'
+                    ? 'bg-red-600 text-white hover:bg-red-700'
+                    : 'bg-white/10 hover:bg-white/20'
                     }`}
                   aria-label={isLiked ? 'Movie liked' : 'Like movie'}
                   title={isLiked ? 'Movie liked' : 'Like movie'}

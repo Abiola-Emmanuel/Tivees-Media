@@ -34,6 +34,8 @@ interface PaymentPlan {
   _id: string;
   name: string;
   price: number;
+  amount?: number;
+  description?: string;
   durationInDays: number;
   features: string[];
   status?: string;
@@ -59,9 +61,10 @@ async function fetchPaymentPlans(token: string | null): Promise<PaymentPlan[]> {
 async function updatePaymentPlan(
   token: string | null,
   planId: string,
-  payload: { name?: string },
+  payload: { name?: string; price?: number; description?: string },
 ): Promise<PaymentPlan> {
   if (!token) throw new Error("Not authenticated");
+
   const res = await fetch(`${API_BASE}/api/v1/admin/admin-updatePaymentPlan`, {
     method: "PATCH",
     headers: {
@@ -85,6 +88,8 @@ export default function SubscriptionPage() {
   const queryClient = useQueryClient();
   const [editingPlan, setEditingPlan] = useState<PaymentPlan | null>(null);
   const [editName, setEditName] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editDescription, setEditDescription] = useState("");
   const [deletePlan, setDeletePlan] = useState<PaymentPlan | null>(null);
 
   const {
@@ -100,8 +105,17 @@ export default function SubscriptionPage() {
   const plan = plans[0] ?? null;
 
   const updateMutation = useMutation({
-    mutationFn: ({ planId, name }: { planId: string; name: string }) =>
-      updatePaymentPlan(token, planId, { name }),
+    mutationFn: ({
+      planId,
+      name,
+      price,
+      description,
+    }: {
+      planId: string;
+      name: string;
+      price: number;
+      description: string;
+    }) => updatePaymentPlan(token, planId, { name, price, description }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-payment-plans"] });
       setEditingPlan(null);
@@ -115,11 +129,28 @@ export default function SubscriptionPage() {
   const handleEdit = (p: PaymentPlan) => {
     setEditingPlan(p);
     setEditName(p.name);
+    setEditAmount(String(p.amount ?? p.price ?? ""));
+    setEditDescription(p.description ?? "");
   };
 
   const handleSaveEdit = () => {
-    if (!editingPlan || !editName.trim()) return;
-    updateMutation.mutate({ planId: editingPlan._id, name: editName.trim() });
+    const parsedAmount = Number(editAmount);
+
+    if (
+      !editingPlan ||
+      !editName.trim() ||
+      !Number.isFinite(parsedAmount) ||
+      parsedAmount <= 0
+    ) {
+      return;
+    }
+
+    updateMutation.mutate({
+      planId: editingPlan._id,
+      name: editName.trim(),
+      price: parsedAmount,
+      description: editDescription.trim(),
+    });
   };
 
   const handleDeleteClick = (p: PaymentPlan) => {
@@ -163,7 +194,7 @@ export default function SubscriptionPage() {
           <DialogHeader>
             <DialogTitle>Edit payment plan</DialogTitle>
             <DialogDescription className="text-gray-400">
-              Update the plan name. Features are fixed for this plan.
+              Update the plan name, amount, and description.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -178,6 +209,31 @@ export default function SubscriptionPage() {
                 placeholder="e.g. Premium"
               />
             </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-gray-300">
+                Amount
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-gray-700 bg-[#2a2a2a] px-3 py-1 text-base text-white shadow-xs outline-none placeholder:text-gray-500 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                placeholder="e.g. 1700"
+              />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-gray-300">
+                Description
+              </label>
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                className="min-h-24 w-full rounded-md border border-gray-700 bg-[#2a2a2a] px-3 py-2 text-base text-white shadow-xs outline-none placeholder:text-gray-500 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                placeholder="Describe what this plan includes"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -189,7 +245,12 @@ export default function SubscriptionPage() {
             </Button>
             <Button
               onClick={handleSaveEdit}
-              disabled={!editName.trim() || updateMutation.isPending}
+              disabled={
+                !editName.trim() ||
+                !Number.isFinite(Number(editAmount)) ||
+                Number(editAmount) <= 0 ||
+                updateMutation.isPending
+              }
               className="bg-blue-600 hover:bg-blue-700"
             >
               {updateMutation.isPending ? (
@@ -271,6 +332,11 @@ export default function SubscriptionPage() {
                         : `${plan.durationInDays} days`}
                     </span>
                   </div>
+                  {plan.description ? (
+                    <p className="mb-2 text-sm text-gray-400">
+                      {plan.description}
+                    </p>
+                  ) : null}
                   <p className="text-gray-400 text-sm">Subscribers: —</p>
                 </div>
 

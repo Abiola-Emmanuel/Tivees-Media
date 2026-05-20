@@ -128,7 +128,6 @@ const SignIn = () => {
 
       const response = await axios.post(`${url}/users/login`, requestData)
 
-      console.log('Login response:', response.data)
 
       if (response.data.status === 'SUCCESS' && response.data.token) {
         localStorage.setItem('authToken', response.data.token)

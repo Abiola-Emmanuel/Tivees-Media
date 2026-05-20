@@ -96,11 +96,6 @@ const Navbar = () => {
           Authorization: `Bearer ${authToken}`
         }
       });
-
-      if (logInitialResponse) {
-        console.log('Initial notifications response:', response.data);
-      }
-
       const fetchedNotifications = Array.isArray(response.data?.notifications) ? response.data.notifications : [];
       setNotifications(fetchedNotifications);
 

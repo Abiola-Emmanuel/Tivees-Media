@@ -60,11 +60,9 @@ const SignIn = () => {
         }
       )
 
-      console.log('Google sign-up response:', googleResponse.data)
 
       if (googleResponse.data.status === 'SUCCESS' && googleResponse.data.token) {
         localStorage.setItem('authToken', googleResponse.data.token)
-        console.log('Stored authToken after Google sign-up:', localStorage.getItem('authToken'))
 
         if (googleResponse.data.user) {
           localStorage.setItem('user', JSON.stringify(googleResponse.data.user))

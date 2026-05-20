@@ -54,7 +54,7 @@ export default function Sidebar() {
       <div className="p-4 md:p-6 border-b border-gray-800">
         <Link href="/admin" className="flex items-center space-x-3" onClick={() => setIsMobileMenuOpen(false)}>
           <Image
-            src="logo.png"
+            src="/logo.png"
             alt="TiveesMedia Logo"
             width={32}
             height={32}
