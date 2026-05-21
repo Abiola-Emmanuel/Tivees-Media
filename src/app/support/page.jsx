@@ -8,10 +8,25 @@ import Accordion from '@/components/Accordion';
 import FreeTrial from '@/components/FreeTrial';
 import Footer from '@/components/Footer';
 import { useRouter } from 'next/navigation';
+import axios from "axios"
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const Support = () => {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    message: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const url = `${API_BASE_URL}/api/v1`;
 
   useEffect(() => {
     const authToken = localStorage.getItem('authToken');
@@ -25,6 +40,48 @@ const Support = () => {
 
     setIsAuthenticated(true);
   }, [router]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    setSuccessMessage('');
+    setErrorMessage('');
+    setIsSubmitting(true);
+
+    try {
+      const authToken = localStorage.getItem('authToken');
+      const response = await axios.post(`${url}/users/support`, formData, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      setSuccessMessage(response.data.message);
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        message: '',
+      });
+    } catch (error) {
+      console.error('Support request error:', error.response?.data || error.message);
+      setErrorMessage(
+        error.response?.data?.message || 'Unable to send your message. Please try again.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (isAuthenticated === false) {
     return (
@@ -67,45 +124,71 @@ const Support = () => {
 
           <div className="lg:w-3/5 w-full bg-[#0f0f0f] border border-white/5 rounded-2xl p-8 md:p-12 relative overflow-hidden">
 
-            <form className="relative z-10 bg-black/06 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleSubmit} className="relative z-10 bg-black/06 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-3">
                 <label className="font-normal">First Name</label>
-                <input type="text" placeholder="Enter First Name"
+                <input
+                  type="text"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  placeholder="Enter First Name"
                   className="bg-[#141414] border border-white/10 rounded-lg p-4 focus:outline-none  transition-colors" />
               </div>
 
               <div className="flex flex-col gap-3">
                 <label className="font-normal">Last Name</label>
-                <input type="text" placeholder="Enter Last Name"
+                <input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  placeholder="Enter Last Name"
                   className="bg-[#141414] border border-white/10 rounded-lg p-4 focus:outline-none  transition-colors" />
               </div>
 
               <div className="flex flex-col gap-3">
                 <label className="font-normal">Email</label>
-                <input type="email" placeholder="Enter your Email"
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="Enter your Email"
                   className="bg-[#141414] border border-white/10 rounded-lg p-4 focus:outline-none  transition-colors" />
               </div>
 
               <div className="flex flex-col gap-3">
                 <label className="font-normal">Phone Number</label>
                 <div className="flex gap-2">
-                  <div className="bg-[#141414] border border-white/10 rounded-lg p-4 flex items-center gap-2 cursor-pointer">
-                    <select>
-                      <option className='bg-black'>🏁</option>
-                      <option className='bg-black'>🏁</option>
-                      <option className='bg-black'>🏁</option>
-                    </select>
-                  </div>
-                  <input type="text" placeholder="Enter Phone Number"
+                  <input
+                    type="text"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="Enter Phone Number"
                     className="flex-1 bg-[#141414] border border-white/10 rounded-lg p-4 focus:outline-none  transition-colors" />
                 </div>
               </div>
 
               <div className="flex flex-col gap-3 md:col-span-2">
                 <label className="font-normal">Message</label>
-                <textarea rows="4" placeholder="Enter your Message"
+                <textarea
+                  rows="4"
+                  name="message"
+                  value={formData.message}
+                  onChange={handleChange}
+                  placeholder="Enter your Message"
                   className="bg-[#141414] border border-white/10 rounded-lg p-4 focus:outline-none  transition-colors resize-none"></textarea>
               </div>
+
+              {successMessage ? (
+                <p className="md:col-span-2 text-sm text-green-400">{successMessage}</p>
+              ) : null}
+
+              {errorMessage ? (
+                <p className="md:col-span-2 text-sm text-red-400">{errorMessage}</p>
+              ) : null}
 
               <div className="md:col-span-2 flex flex-col md:flex-row justify-between items-center gap-2 mt-4">
                 <label className="flex items-center gap-3 text-gray-400 cursor-pointer">
@@ -115,8 +198,12 @@ const Support = () => {
                   </p>
                 </label>
 
-                <button type="submit" className="w-[120x] bg-[#e50000] hover:bg-red-700 text-white font-normal text-sm py-2 px-2 rounded-lg transition-all active:scale-95">
-                  Send Message
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-[120px] bg-[#e50000] hover:bg-red-700 text-white font-normal text-sm py-2 px-2 rounded-lg transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? 'Sending...' : 'Send Message'}
                 </button>
               </div>
             </form>
