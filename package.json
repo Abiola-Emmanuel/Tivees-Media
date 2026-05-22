@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
@@ -50,7 +53,7 @@
     "framer-motion": "^12.38.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^1.7.0",
-    "next": "16.2.0",
+    "next": "^16.2.6",
     "next-themes": "^0.4.6",
     "react": "19.2.4",
     "react-day-picker": "^9.14.0",
@@ -69,6 +72,7 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.19.11",
     "@tailwindcss/postcss": "^4",
     "@types/draft-js": "^0.11.20",
     "@types/draftjs-to-html": "^0.8.4",
@@ -77,8 +81,9 @@
     "@types/react-dom": "^19.2.3",
     "@types/react-draft-wysiwyg": "^1.13.9",
     "eslint": "^9",
-    "eslint-config-next": "16.2.0",
+    "eslint-config-next": "^16.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wrangler": "^4.93.1"
   }
 }
