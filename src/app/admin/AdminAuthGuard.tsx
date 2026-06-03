@@ -2,7 +2,9 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useAppSelector } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { clearAuth } from "@/store/slices/authSlice";
+import { getAdminTokenExpiryDate, isAdminTokenExpired } from "@/store/utils/adminToken";
 
 const PUBLIC_PATHS = ["/admin/login", "/admin/signout"];
 
@@ -13,6 +15,7 @@ export default function AdminAuthGuard({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const token = useAppSelector((state) => state.auth.token);
   const isHydrated = useAppSelector((state) => state.auth.isHydrated);
 
@@ -20,6 +23,13 @@ export default function AdminAuthGuard({
 
   useEffect(() => {
     if (!isHydrated) return;
+
+    if (token && isAdminTokenExpired(token)) {
+      dispatch(clearAuth());
+      router.replace("/admin/login");
+      return;
+    }
+
     if (pathname === "/admin/login" && token) {
       router.replace("/admin");
       return;
@@ -27,7 +37,34 @@ export default function AdminAuthGuard({
     if (!isPublicPath && !token) {
       router.replace("/admin/login");
     }
-  }, [isHydrated, isPublicPath, pathname, token, router]);
+  }, [dispatch, isHydrated, isPublicPath, pathname, token, router]);
+
+  useEffect(() => {
+    if (!isHydrated || !token) return;
+
+    const expiryDate = getAdminTokenExpiryDate(token);
+
+    if (!expiryDate) {
+      dispatch(clearAuth());
+      router.replace("/admin/login");
+      return;
+    }
+
+    const delay = expiryDate.getTime() - Date.now();
+
+    if (delay <= 0) {
+      dispatch(clearAuth());
+      router.replace("/admin/login");
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      dispatch(clearAuth());
+      router.replace("/admin/login");
+    }, delay);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [dispatch, isHydrated, router, token]);
 
   if (!isHydrated && !isPublicPath) {
     return (

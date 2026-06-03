@@ -1371,26 +1371,7 @@ const WatchPartyPlayer = () => {
         Back
       </button>
 
-      <div
-        className="absolute top-6 right-6 z-20 flex items-center gap-2 px-3 py-2 rounded-full"
-        style={{
-          backgroundColor:
-            connectionStatus === 'connected' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-        }}
-      >
-        <div
-          className="w-2 h-2 rounded-full"
-          style={{
-            backgroundColor: connectionStatus === 'connected' ? '#22c55e' : '#ef4444',
-            animation: connectionStatus === 'connected' ? 'pulse 2s infinite' : 'none',
-          }}
-        />
-        <span className="text-xs font-medium">
-          {connectionStatus === 'connected' ? 'Live' : 'Connecting...'}
-        </span>
-      </div>
-
-      <div className="absolute right-6 top-20 z-20 flex max-w-[calc(100vw-3rem)] flex-col items-end gap-3">
+      {/* <div className="absolute right-6 top-20 z-20 flex max-w-[calc(100vw-3rem)] flex-col items-end gap-3">
         <div className="flex items-center gap-2">
           {cameraError ? (
             <span className="rounded-full bg-red-500/20 px-3 py-2 text-xs text-red-100">
@@ -1408,21 +1389,40 @@ const WatchPartyPlayer = () => {
             {isCameraEnabled ? <MdVideocam size={22} /> : <MdVideocamOff size={22} />}
           </button>
         </div>
-      </div>
+      </div> */}
 
-      <div className="relative flex-1 flex flex-col justify-between p-6">
-        <div className="flex justify-between items-start z-10">
+      <div className="relative flex min-w-0 flex-1 flex-col justify-between p-6">
+        <div
+          className="absolute top-6 right-6 z-20 flex items-center gap-2 px-3 py-2 rounded-full"
+          style={{
+            backgroundColor:
+              connectionStatus === 'connected' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+          }}
+        >
+          <div
+            className="w-2 h-2 rounded-full"
+            style={{
+              backgroundColor: connectionStatus === 'connected' ? '#22c55e' : '#ef4444',
+              animation: connectionStatus === 'connected' ? 'pulse 2s infinite' : 'none',
+            }}
+          />
+          <span className="text-xs font-medium">
+            {connectionStatus === 'connected' ? 'Live' : 'Connecting...'}
+          </span>
+        </div>
+
+        <div className="flex justify-center items-start z-10">
           <div className="invisible" />
           <h2 className="text-sm font-medium opacity-80 uppercase tracking-widest text-center max-w-xs">
             Watch Party
             {isHost && <span className="ml-2 text-red-500 text-xs">HOST</span>}
           </h2>
-          <button
+          {/* <button
             onClick={() => setActivePanel(null)}
             className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition"
           >
             <MdClose size={20} />
-          </button>
+          </button> */}
         </div>
 
         <div className="absolute inset-0 flex items-center justify-center z-0">
@@ -1456,11 +1456,10 @@ const WatchPartyPlayer = () => {
               <button
                 type="button"
                 onClick={handleToggleAudio}
-                className={`p-2 rounded-lg transition ${
-                  audioActivationRequired || isPlayerMuted
-                    ? 'bg-white/15 text-white hover:bg-white/25'
-                    : 'hover:bg-white/10'
-                }`}
+                className={`p-2 rounded-lg transition ${audioActivationRequired || isPlayerMuted
+                  ? 'bg-white/15 text-white hover:bg-white/25'
+                  : 'hover:bg-white/10'
+                  }`}
                 title={audioActivationRequired || isPlayerMuted ? 'Enable audio' : 'Mute audio'}
                 aria-label={audioActivationRequired || isPlayerMuted ? 'Enable audio' : 'Mute audio'}
               >
@@ -1505,93 +1504,6 @@ const WatchPartyPlayer = () => {
           </div>
         </div>
 
-        {activePanel && (
-          <div className="absolute inset-y-0 right-0 z-30 w-full max-w-sm border-l border-white/10 bg-black/95 shadow-2xl backdrop-blur-md animate-in slide-in-from-right duration-300 pointer-events-auto">
-            {activePanel === 'comments' ? (
-              <CommentsPanel
-                messages={messages}
-                userNamesById={attendeeNames}
-                draft={messageDraft}
-                onDraftChange={setMessageDraft}
-                onSend={handleSendMessage}
-                currentUserId={userId}
-                connectionStatus={connectionStatus}
-                onClose={() => setActivePanel(null)}
-              />
-            ) : activePanel === 'cameras' ? (
-              <div className="flex h-full flex-col p-5">
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-white/45">Faces in this room</p>
-                    <h3 className="mt-1 text-lg font-semibold text-white">{cameraCount} camera{cameraCount === 1 ? '' : 's'}</h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActivePanel(null)}
-                    className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
-                    aria-label="Close cameras"
-                  >
-                    <MdClose size={18} />
-                  </button>
-                </div>
-
-                <div className="mb-4 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleToggleCamera}
-                    className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white transition hover:bg-white/15"
-                  >
-                    {isCameraEnabled ? <MdVideocamOff size={18} /> : <MdVideocam size={18} />}
-                    {isCameraEnabled ? 'Stop camera' : 'Start camera'}
-                  </button>
-                  {cameraError ? (
-                    <span className="text-xs text-red-200">{cameraError}</span>
-                  ) : null}
-                </div>
-
-                <div className="mb-4 rounded-lg border border-white/10 bg-white/[0.04] p-3 text-xs text-white/65">
-                  <div className="flex justify-between gap-3">
-                    <span>Socket</span>
-                    <span className={connectionStatus === 'connected' ? 'text-green-300' : 'text-red-200'}>
-                      {connectionStatus}
-                    </span>
-                  </div>
-                  {connectionStatus === 'error' && (
-                    <div className="mt-2 flex justify-center">
-                      <button
-                        onClick={() => {
-                          setConnectionStatus('connecting');
-                          // Trigger re-initialization by updating a dependency
-                          setPlayerReady(false);
-                          // Force re-run of useEffect by changing a state that affects it
-                          window.location.reload();
-                        }}
-                        className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
-                      >
-                        Retry Connection
-                      </button>
-                    </div>
-                  )}
-                  <div className="mt-1 flex justify-between gap-3">
-                    <span>Known peers</span>
-                    <span>{knownPeerCount}</span>
-                  </div>
-                  <div className="mt-1 flex justify-between gap-3">
-                    <span>Your peer</span>
-                    <span className="max-w-32 truncate">{myPeerId || userId || 'waiting'}</span>
-                  </div>
-                </div>
-
-                <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                  {renderCameraTiles()}
-                </div>
-              </div>
-            ) : (
-              <AttendeesPanel />
-            )}
-          </div>
-        )}
-
         <style jsx>{`
           @keyframes pulse {
             0%,
@@ -1604,6 +1516,93 @@ const WatchPartyPlayer = () => {
           }
         `}</style>
       </div>
+
+      {activePanel && (
+        <aside className="relative z-30 h-full w-[min(24rem,45vw)] min-w-[18rem] shrink-0 border-l border-white/10 bg-black/95 shadow-2xl backdrop-blur-md animate-in slide-in-from-right duration-300 pointer-events-auto">
+          {activePanel === 'comments' ? (
+            <CommentsPanel
+              messages={messages}
+              userNamesById={attendeeNames}
+              draft={messageDraft}
+              onDraftChange={setMessageDraft}
+              onSend={handleSendMessage}
+              currentUserId={userId}
+              connectionStatus={connectionStatus}
+              onClose={() => setActivePanel(null)}
+            />
+          ) : activePanel === 'cameras' ? (
+            <div className="flex h-full flex-col p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/45">Faces in this room</p>
+                  <h3 className="mt-1 text-lg font-semibold text-white">{cameraCount} camera{cameraCount === 1 ? '' : 's'}</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActivePanel(null)}
+                  className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
+                  aria-label="Close cameras"
+                >
+                  <MdClose size={18} />
+                </button>
+              </div>
+
+              <div className="mb-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleToggleCamera}
+                  className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white transition hover:bg-white/15"
+                >
+                  {isCameraEnabled ? <MdVideocamOff size={18} /> : <MdVideocam size={18} />}
+                  {isCameraEnabled ? 'Stop camera' : 'Start camera'}
+                </button>
+                {cameraError ? (
+                  <span className="text-xs text-red-200">{cameraError}</span>
+                ) : null}
+              </div>
+
+              <div className="mb-4 rounded-lg border border-white/10 bg-white/[0.04] p-3 text-xs text-white/65">
+                <div className="flex justify-between gap-3">
+                  <span>Socket</span>
+                  <span className={connectionStatus === 'connected' ? 'text-green-300' : 'text-red-200'}>
+                    {connectionStatus}
+                  </span>
+                </div>
+                {connectionStatus === 'error' && (
+                  <div className="mt-2 flex justify-center">
+                    <button
+                      onClick={() => {
+                        setConnectionStatus('connecting');
+                        // Trigger re-initialization by updating a dependency
+                        setPlayerReady(false);
+                        // Force re-run of useEffect by changing a state that affects it
+                        window.location.reload();
+                      }}
+                      className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
+                    >
+                      Retry Connection
+                    </button>
+                  </div>
+                )}
+                <div className="mt-1 flex justify-between gap-3">
+                  <span>Known peers</span>
+                  <span>{knownPeerCount}</span>
+                </div>
+                <div className="mt-1 flex justify-between gap-3">
+                  <span>Your peer</span>
+                  <span className="max-w-32 truncate">{myPeerId || userId || 'waiting'}</span>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                {renderCameraTiles()}
+              </div>
+            </div>
+          ) : (
+            <AttendeesPanel />
+          )}
+        </aside>
+      )}
 
 
     </div>

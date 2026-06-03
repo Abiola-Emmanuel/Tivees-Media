@@ -26,7 +26,17 @@ interface ApiWatchParty {
   _id: string;
   movieTitle: string;
   movieLink: string;
-  host: string;
+  host:
+    | string
+    | {
+        _id?: string;
+        id?: string;
+        name?: string;
+        fullName?: string;
+        username?: string;
+        email?: string;
+        loginId?: string;
+      };
   status: string;
   participants: string[];
   numberOfPeopleWatching: number;
@@ -72,6 +82,35 @@ const formatStatus = (status: string) => {
   return status || "—";
 };
 
+const getHostDetails = (host: ApiWatchParty["host"]) => {
+  if (!host) {
+    return { label: "â€”", id: "â€”", searchText: "" };
+  }
+
+  if (typeof host === "string") {
+    return {
+      label: `Host ${host.slice(-6)}`,
+      id: host,
+      searchText: host,
+    };
+  }
+
+  const id = host._id || host.id || "";
+  const label =
+    host.name ||
+    host.fullName ||
+    host.username ||
+    host.email ||
+    host.loginId ||
+    (id ? `Host ${id.slice(-6)}` : "Host");
+
+  return {
+    label,
+    id: id || host.email || host.loginId || "â€”",
+    searchText: [label, id, host.email, host.loginId].filter(Boolean).join(" "),
+  };
+};
+
 export default function WatchPartyPage() {
   const token = useAuthToken();
   const [searchQuery, setSearchQuery] = useState("");
@@ -92,10 +131,15 @@ export default function WatchPartyPage() {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return parties;
     return parties.filter(
-      (p) =>
-        p.movieTitle?.toLowerCase().includes(q) ||
-        (p.status ?? "").toLowerCase().includes(q) ||
-        p.host?.toLowerCase().includes(q),
+      (p) => {
+        const host = getHostDetails(p.host);
+
+        return (
+          p.movieTitle?.toLowerCase().includes(q) ||
+          (p.status ?? "").toLowerCase().includes(q) ||
+          host.searchText.toLowerCase().includes(q)
+        );
+      },
     );
   }, [parties, searchQuery]);
 
@@ -122,7 +166,7 @@ export default function WatchPartyPage() {
       ["Title", "Host", "Participants", "Status"],
       ...filteredParties.map((p) => [
         p.movieTitle ?? "",
-        p.host ?? "",
+        getHostDetails(p.host).label,
         String(p.numberOfPeopleWatching ?? p.participants?.length ?? 0),
         formatStatus(p.status),
       ]),
@@ -313,12 +357,10 @@ export default function WatchPartyPage() {
                           <td className="px-4 sm:px-6 py-4">
                             <div className="min-w-0">
                               <p className="text-white font-medium text-sm truncate">
-                                {party.host
-                                  ? `Host ${party.host.slice(-6)}`
-                                  : "—"}
+                                {getHostDetails(party.host).label}
                               </p>
                               <p className="text-gray-400 text-xs truncate">
-                                ID: {party.host || "—"}
+                                ID: {getHostDetails(party.host).id}
                               </p>
                             </div>
                           </td>
@@ -397,8 +439,7 @@ export default function WatchPartyPage() {
                             {party.movieTitle || "—"}
                           </h3>
                           <p className="text-gray-400 text-xs truncate">
-                            Host:{" "}
-                            {party.host ? `…${party.host.slice(-8)}` : "—"}
+                            Host: {getHostDetails(party.host).label}
                           </p>
                         </div>
                       </div>

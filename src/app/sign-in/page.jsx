@@ -5,6 +5,7 @@ import Footer from '@/components/Footer'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { FaRegEye, FaRegEyeSlash } from 'react-icons/fa'
 import axios from 'axios'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL
@@ -29,6 +30,7 @@ const SignIn = () => {
   const [email, setEmail] = useState('')
   const [number, setNumber] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleReady, setIsGoogleReady] = useState(false)
   const [googleError, setGoogleError] = useState('')
@@ -87,7 +89,7 @@ const SignIn = () => {
     }
 
     if (!window.google?.accounts?.id) {
-      setGoogleError('Google Sign-In failed to load. Please refresh and try again.')
+      setGoogleError('We could not load the Google sign-up button. Check your connection, turn off any blocker, then refresh this page.')
       return
     }
 
@@ -112,7 +114,7 @@ const SignIn = () => {
         window.google.accounts.id.cancel()
       }
     }
-  }, [handleGoogleResponse, isGoogleReady])
+  }, [isGoogleReady])
 
   const handleSignUp = async (e) => {
     e.preventDefault()
@@ -157,7 +159,7 @@ const SignIn = () => {
         strategy="afterInteractive"
         onLoad={() => setIsGoogleReady(true)}
         onError={() =>
-          setGoogleError('Google Sign-In script could not be loaded. Please try again later.')
+          setGoogleError('We could not load the Google sign-up button. Check your connection, turn off any blocker, then refresh this page.')
         }
       />
 
@@ -235,7 +237,6 @@ const SignIn = () => {
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          whileHover={{ scale: 1.01 }}
         >
 
           <motion.div
@@ -263,7 +264,7 @@ const SignIn = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.4 }}
-              whileFocus={{ scale: 1.02, borderColor: "#E50000" }}
+            // whileFocus={{ scale: 1.02, borderColor: "#E50000" }}
             />
 
             <motion.input
@@ -275,7 +276,7 @@ const SignIn = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.5 }}
-              whileFocus={{ scale: 1.02, borderColor: "#E50000" }}
+            // whileFocus={{ scale: 1.02, borderColor: "#E50000" }}
             />
 
             <motion.input
@@ -287,20 +288,31 @@ const SignIn = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.6 }}
-              whileFocus={{ scale: 1.02, borderColor: "#E50000" }}
+            // whileFocus={{ scale: 1.02, borderColor: "#E50000" }}
             />
 
-            <motion.input
-              type="password"
-              placeholder='Password'
-              className='w-full h-10 sm:h-11 md:h-12 bg-[#33333353] text-white mt-4 sm:mt-5 md:mt-6 border-1 rounded-sm pl-4 text-sm sm:text-base'
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+            <motion.div
+              className='relative mt-4 sm:mt-5 md:mt-6'
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.7 }}
-              whileFocus={{ scale: 1.02, borderColor: "#E50000" }}
-            />
+            >
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder='Password'
+                className='w-full h-10 sm:h-11 md:h-12 bg-[#33333353] text-white border-1 rounded-sm pl-4 pr-12 text-sm sm:text-base'
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type='button'
+                className='absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 hover:text-white focus:outline-none'
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <FaRegEyeSlash /> : <FaRegEye />}
+              </button>
+            </motion.div>
 
             <motion.button
               whileHover={{ scale: isLoading ? 1 : 1.02, y: isLoading ? 0 : -2 }}
@@ -349,6 +361,7 @@ const SignIn = () => {
 
             <motion.p
               whileHover={{ scale: 1.05 }}
+              onClick={() => router.push('/forgot-password')}
               className='text-white text-center text-sm sm:text-base md:text-lg mt-4 cursor-pointer hover:underline'
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -385,7 +398,7 @@ const SignIn = () => {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4, delay: 1.4 }}
             >
-              This page is protected by Google reCAPTCHA to ensure you're not a bot.
+              This page is protected by Google reCAPTCHA to ensure you&apos;re not a bot.
             </motion.p>
 
             <motion.p

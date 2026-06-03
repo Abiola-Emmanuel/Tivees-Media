@@ -5,6 +5,7 @@ import Footer from '@/components/Footer'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { FaRegEye, FaRegEyeSlash } from 'react-icons/fa'
 import axios from 'axios'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL
@@ -27,6 +28,7 @@ const getReadableErrorMessage = (error, fallbackMessage) => {
 const SignIn = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleReady, setIsGoogleReady] = useState(false)
   const [googleError, setGoogleError] = useState('')
@@ -84,7 +86,7 @@ const SignIn = () => {
     }
 
     if (!window.google?.accounts?.id) {
-      setGoogleError('Google Sign-In failed to load. Please refresh and try again.')
+      setGoogleError('We could not load the Google sign-in button. Please check your connection, disable any browser blocker, and refresh the page.')
       return
     }
 
@@ -159,7 +161,7 @@ const SignIn = () => {
         strategy="afterInteractive"
         onLoad={() => setIsGoogleReady(true)}
         onError={() =>
-          setGoogleError('Google Sign-In script could not be loaded. Please try again later.')
+          setGoogleError('We could not load the Google sign-in button. Please check your connection, disable any browser blocker, and refresh the page.')
         }
       />
 
@@ -256,13 +258,23 @@ const SignIn = () => {
             />
 
 
-            <motion.input
-              type="password"
-              placeholder='Password'
-              className='w-full h-10 sm:h-11 md:h-12 bg-[#33333353] text-white mt-4 sm:mt-5 md:mt-6 border-1 rounded-sm pl-4 text-sm sm:text-base'
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className='relative mt-4 sm:mt-5 md:mt-6'>
+              <motion.input
+                type={showPassword ? 'text' : 'password'}
+                placeholder='Password'
+                className='w-full h-10 sm:h-11 md:h-12 bg-[#33333353] text-white border-1 rounded-sm pl-4 pr-12 text-sm sm:text-base'
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type='button'
+                className='absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 hover:text-white focus:outline-none'
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <FaRegEyeSlash /> : <FaRegEye />}
+              </button>
+            </div>
 
             <motion.button
               whileHover={{ scale: isLoading ? 1 : 1.02 }}
@@ -296,6 +308,7 @@ const SignIn = () => {
 
             <motion.p
               whileHover={{ scale: 1.05 }}
+              onClick={() => router.push('/forgot-password')}
               className='text-white text-center text-sm sm:text-base md:text-lg mt-4 cursor-pointer hover:underline'
             >
               Forgot password?
