@@ -2,11 +2,13 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useEffect, useRef, useState, Suspense } from 'react';
+import React, { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { MdClose, MdShare, MdPerson, MdMessage, MdVideocam, MdVideocamOff, MdVolumeOff, MdVolumeUp } from 'react-icons/md';
 import AttendeesPanel from '@/components/AttendesPanel';
 import CommentsPanel from '@/components/CommentsPanel';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const createMessageId = (message = {}) => {
   return (
@@ -177,6 +179,38 @@ const getParticipantName = (participant) => {
     : participant.name || participant.userName || participant.senderName || participant.user?.name || participant.user?.fullName || ''
 }
 
+const getBackendErrorMessage = (payload = {}) => {
+  if (typeof payload === 'string') {
+    const messageText = payload.trim()
+    const isWatchPartyAccessError = /authorization failed|invalid or expired token|signature failed|watch\s*party.*not available|watchparty.*not available|expired party|party.*ended/i.test(messageText)
+
+    return isWatchPartyAccessError ? messageText : ''
+  }
+
+  const message =
+    payload.message ||
+    payload.error ||
+    payload.reason ||
+    payload.details ||
+    payload.data?.message ||
+    payload.data?.error ||
+    ''
+
+  const messageText = typeof message === 'string' ? message.trim() : ''
+
+  if (!messageText) {
+    return ''
+  }
+
+  const statusText = String(payload.status || payload.type || payload.code || '').toLowerCase()
+  const isErrorPayload = ['error', 'failed', 'failure', 'unauthorized', 'forbidden'].some((value) =>
+    statusText.includes(value)
+  )
+  const isWatchPartyAccessError = /authorization failed|invalid or expired token|signature failed|watch\s*party.*not available|watchparty.*not available|expired party|party.*ended/i.test(messageText)
+
+  return isErrorPayload || isWatchPartyAccessError ? messageText : ''
+}
+
 const WatchPartyPlayer = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -202,6 +236,7 @@ const WatchPartyPlayer = () => {
   const [isCameraEnabled, setIsCameraEnabled] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [cameraError, setCameraError] = useState('');
+  const [backendErrorMessage, setBackendErrorMessage] = useState('');
   const [myPeerId, setMyPeerId] = useState('');
   const [knownPeerCount, setKnownPeerCount] = useState(0);
   const [remoteDisplayNames, setRemoteDisplayNames] = useState({});
@@ -257,6 +292,7 @@ const WatchPartyPlayer = () => {
   const processedOfferSdpRef = useRef(new Map());
   const processedAnswerSdpRef = useRef(new Map());
   const pendingIceCandidatesRef = useRef({});
+  const watchPartyEndedPatchSentRef = useRef(false);
 
   const sendSocketMessage = (message) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
@@ -283,6 +319,34 @@ const WatchPartyPlayer = () => {
     }
     return true;
   };
+
+  const markWatchPartyEnded = useCallback(({ keepalive = false } = {}) => {
+    if (!isHostRef.current || !partyId || watchPartyEndedPatchSentRef.current) {
+      return;
+    }
+
+    const authToken = window.localStorage.getItem('authToken');
+
+    if (!authToken || !API_BASE_URL) {
+      console.warn('Watch party end status patch skipped: missing auth token or API base URL.');
+      return;
+    }
+
+    watchPartyEndedPatchSentRef.current = true;
+
+    fetch(`${API_BASE_URL}/api/v1/users/watchparty/${partyId}`, {
+      method: 'PATCH',
+      keepalive,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ status: 'ended' })
+    }).catch((error) => {
+      watchPartyEndedPatchSentRef.current = false;
+      console.error('Failed to mark watch party as ended:', error);
+    });
+  }, [partyId]);
 
   const redirectGuestsAfterHostLeaves = () => {
     if (isHostRef.current) return;
@@ -321,19 +385,23 @@ const WatchPartyPlayer = () => {
 
   useEffect(() => {
     const announceHostLeaving = () => {
-      if (!isHostRef.current || wsRef.current?.readyState !== WebSocket.OPEN) {
+      if (!isHostRef.current) {
         return;
       }
 
-      wsRef.current.send(JSON.stringify({
-        type: 'host-left',
-        partyId,
-        userId,
-        hostId: userId,
-        senderId: userId,
-        senderUserId: userId,
-        peerId: myPeerIdRef.current || userId
-      }));
+      markWatchPartyEnded({ keepalive: true });
+
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'host-left',
+          partyId,
+          userId,
+          hostId: userId,
+          senderId: userId,
+          senderUserId: userId,
+          peerId: myPeerIdRef.current || userId
+        }));
+      }
     };
 
     window.addEventListener('beforeunload', announceHostLeaving);
@@ -341,7 +409,7 @@ const WatchPartyPlayer = () => {
     return () => {
       window.removeEventListener('beforeunload', announceHostLeaving);
     };
-  }, [partyId, userId]);
+  }, [markWatchPartyEnded, partyId, userId]);
 
   const rememberAttendeeName = (nextUserId = '', nextUserName = '') => {
     if (!nextUserId || !isRealUserName(nextUserName)) {
@@ -969,7 +1037,29 @@ const WatchPartyPlayer = () => {
     };
 
     wsRef.current.onmessage = async (event) => {
-      const data = JSON.parse(event.data);
+      let data;
+
+      try {
+        data = JSON.parse(event.data);
+      } catch {
+        const plainErrorMessage = getBackendErrorMessage({ message: event.data });
+
+        if (plainErrorMessage) {
+          setBackendErrorMessage(plainErrorMessage);
+          setConnectionStatus('error');
+        }
+
+        return;
+      }
+
+      const backendMessage = getBackendErrorMessage(data);
+
+      if (backendMessage) {
+        setBackendErrorMessage(backendMessage);
+        setConnectionStatus('error');
+        return;
+      }
+
       const socketUserId = data.senderUserId || data.userId || data.senderId || data.user?._id || data.user?.id || '';
       const socketUserName = getSocketUserName(data);
 
@@ -1171,12 +1261,24 @@ const WatchPartyPlayer = () => {
       setConnectionStatus('error');
     };
 
-    wsRef.current.onclose = () => {
+    wsRef.current.onclose = (event) => {
       console.log('WebSocket closed');
+      const closeMessage = getBackendErrorMessage({ message: event.reason });
+
+      if (closeMessage) {
+        setBackendErrorMessage(closeMessage);
+        setConnectionStatus('error');
+        return;
+      }
+
       setConnectionStatus('disconnected');
     };
 
     return () => {
+      if (isHostRef.current) {
+        markWatchPartyEnded({ keepalive: true });
+      }
+
       if (isHostRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({
           type: 'host-left',
@@ -1208,7 +1310,7 @@ const WatchPartyPlayer = () => {
       setMyPeerId('');
       setKnownPeerCount(0);
     };
-  }, [partyId, cfid, userId, playerReady]);
+  }, [partyId, cfid, userId, playerReady, markWatchPartyEnded]);
 
   const handleShareParty = () => {
     const shareUrl = `${window.location.origin}/watchparty/play?partyId=${partyId}&cfid=${cfid}${movieId ? `&movieId=${movieId}` : ''}`;
@@ -1298,11 +1400,36 @@ const WatchPartyPlayer = () => {
     return null;
   }
 
+  const moviesButtonClass = 'rounded-lg bg-red-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-red-700';
+
+  if (backendErrorMessage) {
+    return (
+      <div className="w-full h-screen bg-black flex flex-col items-center justify-center px-6 text-center text-white gap-4">
+        <h2 className="text-2xl font-bold">Watch party not available</h2>
+        <p className="max-w-md text-gray-400">{backendErrorMessage}</p>
+        <button
+          type="button"
+          onClick={() => router.push('/movies')}
+          className={moviesButtonClass}
+        >
+          Back to movies
+        </button>
+      </div>
+    );
+  }
+
   if (isAuthenticated === false) {
     return (
       <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white gap-4">
         <h2 className="text-2xl font-bold">Redirecting</h2>
         <p className="text-gray-400">You need to sign in to join the watch party</p>
+        <button
+          type="button"
+          onClick={() => router.push('/movies')}
+          className={moviesButtonClass}
+        >
+          Back to movies
+        </button>
       </div>
     );
   }
@@ -1312,6 +1439,13 @@ const WatchPartyPlayer = () => {
       <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white gap-4">
         <h2 className="text-2xl font-bold">Error</h2>
         <p className="text-gray-400">Missing watch party parameters</p>
+        <button
+          type="button"
+          onClick={() => router.push('/movies')}
+          className={moviesButtonClass}
+        >
+          Back to movies
+        </button>
       </div>
     );
   }

@@ -285,7 +285,7 @@ const WatchParty = () => {
 
                   {partyId && (
                     <>
-                      <motion.button
+                      {/* <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleCopyLink}
@@ -293,7 +293,7 @@ const WatchParty = () => {
                       >
                         <FaLink className="text-lg" />
                         {isCopied ? "Link Copied!" : "Copy Link"}
-                      </motion.button>
+                      </motion.button> */}
 
                       <motion.button
                         whileHover={{ scale: 1.02 }}
