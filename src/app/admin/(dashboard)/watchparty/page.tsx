@@ -27,16 +27,16 @@ interface ApiWatchParty {
   movieTitle: string;
   movieLink: string;
   host:
-    | string
-    | {
-        _id?: string;
-        id?: string;
-        name?: string;
-        fullName?: string;
-        username?: string;
-        email?: string;
-        loginId?: string;
-      };
+  | string
+  | {
+    _id?: string;
+    id?: string;
+    name?: string;
+    fullName?: string;
+    username?: string;
+    email?: string;
+    loginId?: string;
+  };
   status: string;
   participants: string[];
   numberOfPeopleWatching: number;
@@ -57,6 +57,7 @@ async function fetchWatchParties(
   });
   if (!res.ok) throw new Error("Failed to fetch watch parties");
   const json = (await res.json()) as GetWatchPartyResponse;
+  console.log("Watchparties response:", json);
   if (json.status !== "SUCCESS" || !Array.isArray(json.data)) return [];
   return json.data;
 }
@@ -68,7 +69,7 @@ const getStatusBadgeColor = (status: string) => {
   if (s === "ONGOING" || s === "ACTIVE")
     return "bg-green-500/20 text-green-400 border-green-500/30";
   if (s === "ENDED" || s === "COMPLETED")
-    return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+    return "bg-red-500/20 text-red-400 border-red-500/30";
   if (s === "DRAFT") return "bg-red-500/20 text-red-400 border-red-500/30";
   return "bg-gray-500/20 text-gray-400 border-gray-500/30";
 };
@@ -79,7 +80,9 @@ const formatStatus = (status: string) => {
   if (s === "ONGOING" || s === "ACTIVE") return "Active";
   if (s === "ENDED" || s === "COMPLETED") return "Ended";
   if (s === "DRAFT") return "Draft";
+  console.log(status, "--------------")
   return status || "—";
+
 };
 
 const getHostDetails = (host: ApiWatchParty["host"]) => {
@@ -537,11 +540,10 @@ export default function WatchPartyPage() {
                         )}
                         <button
                           onClick={() => setCurrentPage(p)}
-                          className={`px-3 py-1.5 rounded text-sm transition-colors ${
-                            currentPage === p
-                              ? "bg-blue-600 text-white"
-                              : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
-                          }`}
+                          className={`px-3 py-1.5 rounded text-sm transition-colors ${currentPage === p
+                            ? "bg-blue-600 text-white"
+                            : "bg-[#1a1a1a] border border-gray-800 text-white hover:bg-[#242424]"
+                            }`}
                         >
                           {p}
                         </button>

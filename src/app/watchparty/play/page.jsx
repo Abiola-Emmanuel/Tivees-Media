@@ -342,7 +342,7 @@ const WatchPartyPlayer = () => {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${authToken}`
       },
-      body: JSON.stringify({ status: 'ended' })
+      body: JSON.stringify({ status: 'ENDED' })
     }).catch((error) => {
       watchPartyEndedPatchSentRef.current = false;
       console.error('Failed to mark watch party as ended:', error);
@@ -1461,9 +1461,9 @@ const WatchPartyPlayer = () => {
   }
 
   const renderCameraTiles = () => (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="flex w-full flex-col gap-2">
       {localStream ? (
-        <div className="relative aspect-video overflow-hidden rounded-lg border-2 border-blue-500 bg-black">
+        <div className="relative h-10 w-full overflow-hidden rounded-md border border-blue-500 bg-black md:h-20 sm:h-15">
           <video
             autoPlay
             muted
@@ -1479,14 +1479,14 @@ const WatchPartyPlayer = () => {
         <button
           type="button"
           onClick={handleToggleCamera}
-          className="flex aspect-video items-center justify-center rounded-lg border border-white/15 bg-white/10 text-xs text-white transition hover:bg-white/15"
+          className="flex h-28 w-full items-center justify-center rounded-md border border-white/15 bg-white/10 text-xs text-white transition hover:bg-white/15 sm:h-32"
         >
           Start camera
         </button>
       )}
 
       {Object.entries(remoteStreams).map(([peerId, stream]) => (
-        <div key={peerId} className="relative aspect-video overflow-hidden rounded-lg border-2 border-white/20 bg-black">
+        <div key={peerId} className="relative h-10     w-full overflow-hidden rounded-md border border-white/20 bg-black sm:h-32">
           <video
             autoPlay
             playsInline
@@ -1657,7 +1657,7 @@ const WatchPartyPlayer = () => {
       </div>
 
       {activePanel && (
-        <aside className="relative z-30 h-full w-[min(24rem,45vw)] min-w-[18rem] shrink-0 border-l border-white/10 bg-black/95 shadow-2xl backdrop-blur-md animate-in slide-in-from-right duration-300 pointer-events-auto">
+        <aside className="relative z-30 h-full md:h-full w-[min(15rem,15vw)] min-w-[10rem] shrink-0 border-l border-white/10 bg-black/95 shadow-2xl backdrop-blur-md animate-in slide-in-from-right duration-300 pointer-events-auto">
           {activePanel === 'comments' ? (
             <CommentsPanel
               messages={messages}
@@ -1670,12 +1670,42 @@ const WatchPartyPlayer = () => {
               onClose={() => setActivePanel(null)}
             />
           ) : activePanel === 'cameras' ? (
-            <div className="flex h-full flex-col p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-white/45">Faces in this room</p>
-                  <h3 className="mt-1 text-lg font-semibold text-white">{cameraCount} camera{cameraCount === 1 ? '' : 's'}</h3>
+            <div className="flex h-full flex-col p-4">
+              <div className=" flex items-center justify-between">
+
+                <div className="mb-4 rounded-lg border border-white/10 bg-white/[0.04] p-3 text-xs text-white/65">
+                  <div className="flex justify-between gap-3">
+                    {/* <span>Socket</span> */}
+                    <span className={connectionStatus === 'connected' ? 'text-green-300' : 'text-red-200'}>
+                      {connectionStatus}
+                    </span>
+                  </div>
+                  {connectionStatus === 'error' && (
+                    <div className="mt-2 flex justify-center">
+                      <button
+                        onClick={() => {
+                          setConnectionStatus('connecting');
+                          // Trigger re-initialization by updating a dependency
+                          setPlayerReady(false);
+                          // Force re-run of useEffect by changing a state that affects it
+                          window.location.reload();
+                        }}
+                        className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
+                  {/* <div className="mt-1 flex justify-between gap-3">
+                  <span>Known peers</span>
+                  <span>{knownPeerCount}</span>
                 </div>
+                <div className="mt-1 flex justify-between gap-3">
+                  <span>Your peer</span>
+                  <span className="max-w-32 truncate">{myPeerId || userId || 'waiting'}</span>
+                </div> */}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setActivePanel(null)}
@@ -1690,54 +1720,25 @@ const WatchPartyPlayer = () => {
                 <button
                   type="button"
                   onClick={handleToggleCamera}
-                  className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white transition hover:bg-white/15"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-md border border-white/15 bg-white/10 px-3 py-2 text-sm sm:text-[10px] text-white transition hover:bg-white/15"
                 >
                   {isCameraEnabled ? <MdVideocamOff size={18} /> : <MdVideocam size={18} />}
                   {isCameraEnabled ? 'Stop camera' : 'Start camera'}
                 </button>
+              </div>
+
+              <div className="mb-4 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleReloadPage}
-                  className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white transition hover:bg-white/15"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-md border border-white/15 bg-white/10 px-3 py-2 text-sm sm:text-[10px] text-white transition hover:bg-white/15"
                 >
                   <IoIosRefresh size={18} />
                   More faces
                 </button>
-
               </div>
 
-              <div className="mb-4 rounded-lg border border-white/10 bg-white/[0.04] p-3 text-xs text-white/65">
-                <div className="flex justify-between gap-3">
-                  <span>Socket</span>
-                  <span className={connectionStatus === 'connected' ? 'text-green-300' : 'text-red-200'}>
-                    {connectionStatus}
-                  </span>
-                </div>
-                {connectionStatus === 'error' && (
-                  <div className="mt-2 flex justify-center">
-                    <button
-                      onClick={() => {
-                        setConnectionStatus('connecting');
-                        // Trigger re-initialization by updating a dependency
-                        setPlayerReady(false);
-                        // Force re-run of useEffect by changing a state that affects it
-                        window.location.reload();
-                      }}
-                      className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
-                    >
-                      Retry Connection
-                    </button>
-                  </div>
-                )}
-                <div className="mt-1 flex justify-between gap-3">
-                  <span>Known peers</span>
-                  <span>{knownPeerCount}</span>
-                </div>
-                <div className="mt-1 flex justify-between gap-3">
-                  <span>Your peer</span>
-                  <span className="max-w-32 truncate">{myPeerId || userId || 'waiting'}</span>
-                </div>
-              </div>
+
               {cameraError ? (
                 <span className="ml-3 mb-3 text-xs text-red-200">{cameraError}</span>
               ) : null}
