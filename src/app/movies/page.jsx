@@ -55,7 +55,7 @@ const Movies = () => {
     }
 
     setIsAuthenticated(true)
-  }, [router])
+  }, [router]);
 
   useEffect(() => {
     const fetchMoviesByTag = async () => {

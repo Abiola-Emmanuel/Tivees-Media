@@ -7,6 +7,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { MdClose, MdShare, MdPerson, MdMessage, MdVideocam, MdVideocamOff, MdVolumeOff, MdVolumeUp } from 'react-icons/md';
 import AttendeesPanel from '@/components/AttendesPanel';
 import CommentsPanel from '@/components/CommentsPanel';
+import { IoIosRefresh } from 'react-icons/io';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -1318,6 +1319,10 @@ const WatchPartyPlayer = () => {
     alert('Watch party link copied!');
   };
 
+  const handleReloadPage = () => {
+    window.location.reload();
+  };
+
   const handleToggleAudio = async () => {
     if (!playerRef.current) return;
 
@@ -1690,9 +1695,15 @@ const WatchPartyPlayer = () => {
                   {isCameraEnabled ? <MdVideocamOff size={18} /> : <MdVideocam size={18} />}
                   {isCameraEnabled ? 'Stop camera' : 'Start camera'}
                 </button>
-                {cameraError ? (
-                  <span className="text-xs text-red-200">{cameraError}</span>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={handleReloadPage}
+                  className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white transition hover:bg-white/15"
+                >
+                  <IoIosRefresh size={18} />
+                  More faces
+                </button>
+
               </div>
 
               <div className="mb-4 rounded-lg border border-white/10 bg-white/[0.04] p-3 text-xs text-white/65">
@@ -1727,6 +1738,9 @@ const WatchPartyPlayer = () => {
                   <span className="max-w-32 truncate">{myPeerId || userId || 'waiting'}</span>
                 </div>
               </div>
+              {cameraError ? (
+                <span className="ml-3 mb-3 text-xs text-red-200">{cameraError}</span>
+              ) : null}
 
               <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                 {renderCameraTiles()}
