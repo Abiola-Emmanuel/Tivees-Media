@@ -23,6 +23,7 @@ export default function MoviePage({ params }) {
   const [reviews, setReviews] = useState([]);
   const [error, setError] = useState(null);
   const [isLiking, setIsLiking] = useState(false);
+  const [isStartingWatch, setIsStartingWatch] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(null);
   const [likeNotification, setLikeNotification] = useState(null);
@@ -190,6 +191,48 @@ export default function MoviePage({ params }) {
     }
   };
 
+  const handleStartSoloWatch = async () => {
+    if (!movie?._id || isStartingWatch) {
+      return;
+    }
+
+    const authToken = localStorage.getItem("authToken");
+
+    if (!authToken) {
+      showLikeNotification('Sign in to watch movies.', 'error');
+      router.push('/sign-in');
+      return;
+    }
+
+    try {
+      setIsStartingWatch(true);
+
+      const sessionResponse = await axios.post(
+        `${url}/api/v1/users/watch-session/start`,
+        {
+          movieId: movie._id,
+          isPlaying: true
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        }
+      );
+
+      console.log('Solo watch session started:', sessionResponse.data);
+
+      const sessionId = sessionResponse.data?.sessionId || sessionResponse.data?.session?.id;
+      const sessionIdParam = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '';
+      router.push(`/player-page/${movie._id}${sessionIdParam}`);
+    } catch (err) {
+      console.error('Error starting solo watch session:', err);
+      showLikeNotification(err.response?.data?.message || 'Could not start movie. Try again.', 'error');
+    } finally {
+      setIsStartingWatch(false);
+    }
+  };
+
   const RatingStars = ({ rating, interactive = false, onRatingChange, onHover }) => {
     return (
       <div className="flex gap-1.5">
@@ -314,10 +357,11 @@ export default function MoviePage({ params }) {
 
               <div className="flex flex-wrap items-center gap-3">
                 <button
-                  onClick={() => router.push(`/player-page/${movie._id}`)}
-                  className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg flex items-center gap-2">
+                  onClick={handleStartSoloWatch}
+                  disabled={isStartingWatch}
+                  className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
                   <FaPlay />
-                  Play Now
+                  {isStartingWatch ? 'Starting...' : 'Play Now'}
                 </button>
                 <button
                   onClick={() => router.push(`/watchparty/${movie._id}`)}

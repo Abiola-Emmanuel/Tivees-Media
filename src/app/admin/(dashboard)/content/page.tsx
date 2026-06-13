@@ -15,6 +15,7 @@ import {
   Loader2,
   CloudUpload,
   Film,
+  BarChart3,
 } from "lucide-react";
 import QuillEditor from "./QuillEditor";
 import Image from "next/image";
@@ -22,6 +23,7 @@ import { toast } from "sonner";
 import { useAuthToken } from "@/store/hooks";
 import { uploadVideoToCloudflareStream } from "@/lib/cloudflare-stream-upload";
 import { Progress } from "@/components/ui/progress";
+import MovieAnalyticsContainer from "@/app/component/admin/MovieAnalyticsContainer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -180,6 +182,15 @@ export default function ContentPage() {
   const [activeView, setActiveView] = useState<"newMovie" | "movieList">(
     "movieList",
   );
+
+  // Analytics modal state
+  const [selectedMovie, setSelectedMovie] = useState<{
+    id: string;
+    title: string;
+    posterUrl?: string;
+    releaseDate?: string;
+    genre?: string;
+  } | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -1105,7 +1116,16 @@ export default function ContentPage() {
                       paginatedContent.map((item) => (
                         <tr
                           key={item._id}
-                          className="border-b border-gray-800 hover:bg-[#242424] transition-colors"
+                          onClick={() =>
+                            setSelectedMovie({
+                              id: item._id,
+                              title: item.title,
+                              posterUrl: item.posterUrl,
+                              releaseDate: item.releaseDate,
+                              genre: item.genre,
+                            })
+                          }
+                          className="border-b border-gray-800 hover:bg-[#242424] transition-colors cursor-pointer"
                         >
                           <td className="px-4 sm:px-6 py-4">
                             <div className="flex items-center gap-3">
@@ -1165,14 +1185,40 @@ export default function ContentPage() {
                           <td className="px-4 sm:px-6 py-4">
                             <div className="flex items-center justify-end gap-2">
                               <button
-                                onClick={() => openEditModal(item)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedMovie({
+                                    id: item._id,
+                                    title: item.title,
+                                    posterUrl: item.posterUrl,
+                                    releaseDate: item.releaseDate,
+                                    genre: item.genre,
+                                  });
+                                }}
+                                className="p-2 hover:bg-gray-800 rounded transition-colors"
+                                aria-label="View analytics"
+                                title="View Analytics"
+                              >
+                                <BarChart3
+                                  size={16}
+                                  className="text-gray-400 hover:text-blue-400"
+                                />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditModal(item);
+                                }}
                                 className="p-2 hover:bg-gray-800 rounded transition-colors"
                                 aria-label="Edit"
                               >
                                 <Pencil size={16} className="text-gray-400" />
                               </button>
                               <button
-                                onClick={() => setMovieToDelete(item)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMovieToDelete(item);
+                                }}
                                 className="p-2 hover:bg-gray-800 rounded transition-colors"
                                 aria-label="Delete"
                               >
@@ -1186,9 +1232,10 @@ export default function ContentPage() {
                                 )}
                               </button>
                               <button
-                                onClick={() =>
-                                  toast.info("More options coming soon.")
-                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toast.info("More options coming soon.");
+                                }}
                                 className="p-2 hover:bg-gray-800 rounded transition-colors"
                                 aria-label="More options"
                               >
@@ -1220,7 +1267,16 @@ export default function ContentPage() {
                   paginatedContent.map((item) => (
                     <div
                       key={item._id}
-                      className="p-4 border-b border-gray-800"
+                      onClick={() =>
+                        setSelectedMovie({
+                          id: item._id,
+                          title: item.title,
+                          posterUrl: item.posterUrl,
+                          releaseDate: item.releaseDate,
+                          genre: item.genre,
+                        })
+                      }
+                      className="p-4 border-b border-gray-800 cursor-pointer hover:bg-[#242424] transition-colors"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -1259,13 +1315,38 @@ export default function ContentPage() {
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <button
-                            onClick={() => openEditModal(item)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedMovie({
+                                id: item._id,
+                                title: item.title,
+                                posterUrl: item.posterUrl,
+                                releaseDate: item.releaseDate,
+                                genre: item.genre,
+                              });
+                            }}
+                            className="p-2 hover:bg-gray-800 rounded transition-colors"
+                            title="View Analytics"
+                          >
+                            <BarChart3
+                              size={16}
+                              className="text-gray-400 hover:text-blue-400"
+                            />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditModal(item);
+                            }}
                             className="p-2 hover:bg-gray-800 rounded transition-colors"
                           >
                             <Pencil size={16} className="text-gray-400" />
                           </button>
                           <button
-                            onClick={() => setMovieToDelete(item)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMovieToDelete(item);
+                            }}
                             className="p-2 hover:bg-gray-800 rounded transition-colors"
                           >
                             {isDeleteLoadingId === item._id ? (
@@ -1275,9 +1356,10 @@ export default function ContentPage() {
                             )}
                           </button>
                           <button
-                            onClick={() =>
-                              toast.info("More options coming soon.")
-                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toast.info("More options coming soon.");
+                            }}
                             className="p-2 hover:bg-gray-800 rounded transition-colors"
                           >
                             <MoreVertical size={16} className="text-gray-400" />
@@ -1626,6 +1708,16 @@ export default function ContentPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Movie Analytics Modal */}
+      <MovieAnalyticsContainer
+        movieId={selectedMovie?.id || null}
+        title={selectedMovie?.title || ""}
+        posterUrl={selectedMovie?.posterUrl}
+        releaseDate={selectedMovie?.releaseDate}
+        genre={selectedMovie?.genre}
+        onClose={() => setSelectedMovie(null)}
+      />
     </div>
   );
 }

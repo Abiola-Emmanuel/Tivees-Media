@@ -219,6 +219,7 @@ const WatchPartyPlayer = () => {
   const partyId = searchParams.get('partyId');
   const cfid = searchParams.get('cfid');
   const movieId = searchParams.get('movieId');
+  const sessionId = searchParams.get('sessionId');
   const userIdParam = searchParams.get('userId');
 
   const [isHost, setIsHost] = useState(false);
@@ -250,6 +251,7 @@ const WatchPartyPlayer = () => {
   const isHostRef = useRef(false);
   const hostIdRef = useRef('');
   const attendeeNamesRef = useRef({});
+  const isPlaybackPlayingRef = useRef(false);
 
   useEffect(() => {
     if (isHydrated) {
@@ -295,6 +297,10 @@ const WatchPartyPlayer = () => {
   const pendingIceCandidatesRef = useRef({});
   const watchPartyEndedPatchSentRef = useRef(false);
 
+  const getCurrentPositionSeconds = () => {
+    return Number(playerRef.current?.currentTime || 0);
+  };
+
   const sendSocketMessage = (message) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
       console.warn('WebRTC/socket message skipped because socket is not open:', message.type);
@@ -335,6 +341,33 @@ const WatchPartyPlayer = () => {
 
     watchPartyEndedPatchSentRef.current = true;
 
+    if (sessionId) {
+      fetch(`${API_BASE_URL}/api/v1/users/watchparty/session/${partyId}/end`, {
+        method: 'POST',
+        keepalive,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          sessionId,
+          currentPositionSeconds: getCurrentPositionSeconds(),
+          isPlaying: false
+        })
+      }).then(async (response) => {
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          console.error('Failed to end watchparty session:', data || response.statusText);
+          return;
+        }
+
+        console.log('Watchparty session ended:', data);
+      }).catch((error) => {
+        console.error('Error ending watchparty session:', error);
+      });
+    }
+
     fetch(`${API_BASE_URL}/api/v1/users/watchparty/${partyId}`, {
       method: 'PATCH',
       keepalive,
@@ -347,7 +380,7 @@ const WatchPartyPlayer = () => {
       watchPartyEndedPatchSentRef.current = false;
       console.error('Failed to mark watch party as ended:', error);
     });
-  }, [partyId]);
+  }, [partyId, sessionId]);
 
   const redirectGuestsAfterHostLeaves = () => {
     if (isHostRef.current) return;
@@ -880,6 +913,7 @@ const WatchPartyPlayer = () => {
         if (pauseResult && typeof pauseResult.then === 'function') {
           await pauseResult;
         }
+        isPlaybackPlayingRef.current = false;
         console.log('Remote pause applied');
         return;
       }
@@ -890,6 +924,7 @@ const WatchPartyPlayer = () => {
           if (playResult && typeof playResult.then === 'function') {
             await playResult;
           }
+          isPlaybackPlayingRef.current = true;
           setAudioActivationRequired(false);
         } catch (err) {
           if (isHostRef.current) {
@@ -904,6 +939,7 @@ const WatchPartyPlayer = () => {
             await mutedPlayResult;
           }
 
+          isPlaybackPlayingRef.current = true;
           setAudioActivationRequired(true);
         }
         console.log('Remote play applied');
@@ -978,11 +1014,61 @@ const WatchPartyPlayer = () => {
   }, [cfid]);
 
   useEffect(() => {
+    if (!partyId || !sessionId || !playerReady || !playerRef.current) return;
+
+    const sendHeartbeat = async () => {
+      const authToken = window.localStorage.getItem('authToken');
+
+      if (!authToken || !API_BASE_URL || !playerRef.current) {
+        return;
+      }
+
+      const currentPositionSeconds = Number(playerRef.current.currentTime || 0);
+      const isPlaying =
+        typeof playerRef.current.paused === 'boolean'
+          ? !playerRef.current.paused
+          : isPlaybackPlayingRef.current;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/users/watchparty/session/${partyId}/heartbeat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            sessionId,
+            currentPositionSeconds,
+            isPlaying
+          })
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          console.error('Watchparty heartbeat failed:', data || response.statusText);
+          return;
+        }
+
+        console.log('Watchparty heartbeat sent:', data);
+      } catch (error) {
+        console.error('Error sending watchparty heartbeat:', error);
+      }
+    };
+
+    sendHeartbeat();
+    const heartbeatIntervalId = window.setInterval(sendHeartbeat, 30000);
+
+    return () => window.clearInterval(heartbeatIntervalId);
+  }, [partyId, sessionId, playerReady]);
+
+  useEffect(() => {
     if (!playerReady || !playerRef.current || !isHost) return;
 
     console.log('Attaching player event listeners for host');
 
     const handlePlay = () => {
+      isPlaybackPlayingRef.current = true;
       if (!isSyncingRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
         sendSocketMessage({ type: 'play' });
         console.log('Play sent to guests');
@@ -990,6 +1076,7 @@ const WatchPartyPlayer = () => {
     };
 
     const handlePause = () => {
+      isPlaybackPlayingRef.current = false;
       if (!isSyncingRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
         sendSocketMessage({ type: 'pause' });
         console.log('Pause sent to guests');

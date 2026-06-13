@@ -90,23 +90,6 @@ const Main = () => {
   }
 
 
-  const plans = [
-    {
-      name: "Monthly Plan",
-      monthly: 1200,
-      yearly: 10000,
-      description:
-        "Enjoy an extensive library of movies and shows, featuring a range of content, including recently released titles.",
-    },
-    {
-      name: "Yearly Plan",
-      monthly: 2000,
-      yearly: 18000,
-      description:
-        "Access to a widest selection of movies and shows, including all new releases and Offline Viewing",
-    },
-  ];
-
 
   const containerVariants = {
     hidden: { opacity: 0, y: 50 },
@@ -308,89 +291,6 @@ const Main = () => {
 
       <Accordion />
 
-
-      {/* Choose Plan  */}
-      <div className="text-white py-12 sm:py-14 md:py-16 px-4 sm:px-6 md:px-10">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 sm:mb-10 md:mb-12 gap-6">
-          <div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2 sm:mb-3">
-              Choose the plan that's right for you
-            </h2>
-            <p className="text-gray-400 text-sm sm:text-base max-w-xl">
-              Join TiveesMedia and select from our flexible subscription options
-              tailored to suit your viewing preferences. Get ready for non-stop
-              entertainment!
-            </p>
-          </div>
-
-          <div className="bg-[#111] border border-[#333] rounded-lg p-1 flex self-start md:self-auto">
-            <button
-              onClick={() => setBilling("monthly")}
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm transition ${billing === "monthly"
-                ? "bg-[#1a1a1a] text-white"
-                : "text-gray-400"
-                }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setBilling("yearly")}
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm transition ${billing === "yearly"
-                ? "bg-[#1a1a1a] text-white"
-                : "text-gray-400"
-                }`}
-            >
-              Yearly
-            </button>
-          </div>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-5 sm:gap-6">
-          {plans.map((plan, index) => {
-            const price =
-              billing === "monthly" ? plan.monthly : plan.yearly;
-
-            return (
-              <div
-                key={index}
-                className="relative bg-black/10 border border-black/15 rounded-2xl p-5 sm:p-6 md:p-8 overflow-hidden flex flex-col"
-              >
-                <div className="absolute inset-0 bg-black/10 opacity-80"></div>
-
-                <div className="relative z-10 flex flex-col h-full">
-                  <h3 className="text-lg sm:text-xl md:text-2xl mb-2 sm:mb-3">{plan.name}</h3>
-
-                  <p className="text-neutral-400 text-sm sm:text-base mb-4 sm:mb-6">
-                    {plan.description}
-                  </p>
-
-                  <div className="mb-6 sm:mb-8">
-                    <span className="text-2xl sm:text-3xl font-semibold">
-                      ₦{price.toLocaleString()}
-                    </span>
-                    <span className="text-gray-400 text-sm ml-1">
-                      /{billing === "monthly" ? "month" : "year"}
-                    </span>
-                  </div>
-
-                  <div className="flex gap-3 sm:gap-4 mt-auto">
-                    <button
-                      onClick={startSubscription}
-                      className="flex-1 bg-black/40 py-2 sm:py-2.5 md:py-3 rounded-lg hover:bg-[#1a1a1a] transition cursor-pointer text-sm sm:text-base">
-                      Start Free Trial
-                    </button>
-                    <button
-                      onClick={startSubscription}
-                      className="flex-1 bg-red-600 hover:bg-red-700 py-2 sm:py-2.5 md:py-3 rounded-lg transition cursor-pointer text-sm sm:text-base">
-                      Choose Plan
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
       <FreeTrial />
 

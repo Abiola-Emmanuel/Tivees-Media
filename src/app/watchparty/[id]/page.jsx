@@ -23,6 +23,7 @@ const WatchParty = () => {
   const [cfid, setCfid] = useState(null);
   const [streamEmbedUrl, setStreamEmbedUrl] = useState(null);
   const [creatingParty, setCreatingParty] = useState(false);
+  const [startingSession, setStartingSession] = useState(false);
   const url = process.env.NEXT_PUBLIC_BACKEND_URL;
 
   useEffect(() => {
@@ -127,10 +128,35 @@ const WatchParty = () => {
     }
   };
 
-  const handleStartWatching = () => {
-    if (partyId && cfid) {
-      const playUrl = `/watchparty/play?partyId=${partyId}&cfid=${cfid}&movieId=${movie?._id || params.id}`;
+  const handleStartWatching = async () => {
+    if (!partyId || !cfid || startingSession) {
+      return;
+    }
+
+    const authToken = localStorage.getItem('authToken');
+
+    try {
+      setStartingSession(true);
+
+      const sessionResponse = await axios.post(`${url}/api/v1/users/watchparty/session/${partyId}/start`, {
+        isPlaying: true
+      }, {
+        headers: {
+          Authorization: `Bearer ${authToken}`
+        }
+      });
+
+      console.log('Watchparty session started:', sessionResponse.data);
+
+      const sessionId = sessionResponse.data?.sessionId || sessionResponse.data?.session?.id;
+      const sessionIdParam = sessionId ? `&sessionId=${encodeURIComponent(sessionId)}` : '';
+      const playUrl = `/watchparty/play?partyId=${partyId}&cfid=${cfid}&movieId=${movie?._id || params.id}${sessionIdParam}`;
       router.push(playUrl);
+    } catch (sessionErr) {
+      console.error('Error starting watchparty session:', sessionErr);
+      alert(`Failed to start watch party session: ${sessionErr.response?.data?.message || sessionErr.message}`);
+    } finally {
+      setStartingSession(false);
     }
   };
 
@@ -299,9 +325,10 @@ const WatchParty = () => {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleStartWatching}
-                        className="bg-green-600 text-white py-3 px-6 rounded-xl w-full font-medium transition-all duration-300 shadow-lg hover:shadow-green-500/25"
+                        disabled={startingSession}
+                        className="bg-green-600 text-white py-3 px-6 rounded-xl w-full font-medium transition-all duration-300 shadow-lg hover:shadow-green-500/25 disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        Start Watching
+                        {startingSession ? 'Starting...' : 'Start Watching'}
                       </motion.button>
                     </>
                   )}
