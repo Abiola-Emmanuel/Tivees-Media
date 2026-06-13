@@ -4,7 +4,7 @@ import React, { useState, useEffect, use } from 'react';
 import axios from 'axios';
 import Image from 'next/image';
 import { AiOutlineStar, AiFillStar } from 'react-icons/ai';
-import { BiLike, BiComment, BiSend, BiSmile, BiImage } from 'react-icons/bi';
+import { BiComment, BiSend, BiSmile, BiImage } from 'react-icons/bi';
 import { MdKeyboardArrowDown, MdOutlineRateReview } from 'react-icons/md';
 import { BiFilter } from 'react-icons/bi';
 import Navbar from "@/components/Navbar";
@@ -386,10 +386,6 @@ const ReviewPage = ({ params }) => {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h3 className="text-xl font-semibold">All Reviews</h3>
-              <button className="text-sm text-gray-400 hover:text-white flex items-center gap-2 transition-colors px-4 py-2 bg-[#0f0f0f] rounded-lg border border-white/10">
-                <BiFilter size={18} />
-                Filter
-              </button>
             </div>
 
             {(reviews || []).length === 0 ? (
@@ -415,9 +411,7 @@ const ReviewPage = ({ params }) => {
                           {review.user?.email || review.userName || 'Anonymous'} • {new Date(review.createdAt || new Date()).toLocaleDateString()}
                         </p>
                       </div>
-                      <button className="text-gray-500 hover:text-[#e50000] transition-colors">
-                        <BiLike size={20} />
-                      </button>
+
                     </div>
                     <p className="text-gray-300 leading-relaxed">{review.comment || review.review || 'No comment'}</p>
                   </div>

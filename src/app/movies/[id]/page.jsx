@@ -12,7 +12,7 @@ import { AiOutlineStar, AiFillStar } from 'react-icons/ai';
 import Navbar from '@/components/Navbar';
 import FreeTrial from '@/components/FreeTrial';
 import { CiCalendar } from "react-icons/ci";
-import { BiLike, BiComment, BiSend, BiSmile, BiImage } from 'react-icons/bi';
+import { BiComment, BiSend, BiSmile, BiImage } from 'react-icons/bi';
 import { MdOutlineTranslate } from "react-icons/md";
 import Footer from '@/components/Footer';
 
@@ -446,9 +446,7 @@ export default function MoviePage({ params }) {
                         {review.user?.email || 'Anonymous'} • {new Date(review.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <button className="text-gray-500 hover:text-[#e50000] transition-colors">
-                      <BiLike size={20} />
-                    </button>
+
                   </div>
                   <p className="text-gray-300 leading-relaxed">{review.review}</p>
                 </div>

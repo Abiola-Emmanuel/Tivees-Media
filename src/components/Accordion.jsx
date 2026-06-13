@@ -45,7 +45,7 @@ const Accordion = () => {
     },
     {
       id: "07",
-      question: "How do I contact TiveesMEdia customer support?",
+      question: "How do I contact TiveesMedia customer support?",
       answer: "You can contact our customer support team through our website or mobile app.",
     },
     {

@@ -46,17 +46,17 @@ const FreeTrial = () => {
       <div className='absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col text-center md:text-left md:flex-row items-center justify-between gap-4 sm:gap-5 md:gap-6 w-[90%] mx-auto'>
         <div className='flex flex-col gap-1 sm:gap-2'>
           <h2 className='text-white font-semibold text-xl sm:text-2xl md:text-3xl lg:text-[28px] leading-[140%] sm:leading-[150%]'>
-            Start your free trial today!
+            Subscribe to keep watching
           </h2>
           <p className='text-neutral-300 text-xs sm:text-sm md:text-base max-w-xl'>
-            This is a clear and concise call to action that encourages users to sign up for a free trial of TiveesMedia
+            Choose a flexible TiveesMedia plan and unlock nonstop movies, shows, and entertainment.
           </p>
         </div>
 
         <Link
           href='/subscriptions'
           className='bg-[#E50000] text-white py-2.5 sm:py-3 md:py-[14px] px-4 sm:px-5 md:px-[20px] rounded-md text-sm sm:text-base whitespace-nowrap hover:bg-red-700 transition-colors'>
-          Start a Free Trial
+          View Subscription Plans
         </Link>
       </div>
     </div>
