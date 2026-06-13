@@ -2,6 +2,7 @@
 
 import { useState, useRef, ChangeEvent, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Filter,
@@ -23,7 +24,6 @@ import { toast } from "sonner";
 import { useAuthToken } from "@/store/hooks";
 import { uploadVideoToCloudflareStream } from "@/lib/cloudflare-stream-upload";
 import { Progress } from "@/components/ui/progress";
-import MovieAnalyticsContainer from "@/app/component/admin/MovieAnalyticsContainer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -178,19 +178,12 @@ const TAG_OPTIONS = [
 ];
 
 export default function ContentPage() {
+  const router = useRouter();
+
   // View state
   const [activeView, setActiveView] = useState<"newMovie" | "movieList">(
     "movieList",
   );
-
-  // Analytics modal state
-  const [selectedMovie, setSelectedMovie] = useState<{
-    id: string;
-    title: string;
-    posterUrl?: string;
-    releaseDate?: string;
-    genre?: string;
-  } | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -251,6 +244,10 @@ export default function ContentPage() {
     null,
   );
   const [movieToDelete, setMovieToDelete] = useState<ApiMovie | null>(null);
+
+  const openMovieAnalytics = (movieId: string) => {
+    router.push(`/admin/content/analytics/${movieId}`);
+  };
 
   const { data: movies = [], isLoading: isLoadingMovies } = useQuery({
     queryKey: ["admin-home-movies", token],
@@ -1116,15 +1113,7 @@ export default function ContentPage() {
                       paginatedContent.map((item) => (
                         <tr
                           key={item._id}
-                          onClick={() =>
-                            setSelectedMovie({
-                              id: item._id,
-                              title: item.title,
-                              posterUrl: item.posterUrl,
-                              releaseDate: item.releaseDate,
-                              genre: item.genre,
-                            })
-                          }
+                          onClick={() => openMovieAnalytics(item._id)}
                           className="border-b border-gray-800 hover:bg-[#242424] transition-colors cursor-pointer"
                         >
                           <td className="px-4 sm:px-6 py-4">
@@ -1187,13 +1176,7 @@ export default function ContentPage() {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setSelectedMovie({
-                                    id: item._id,
-                                    title: item.title,
-                                    posterUrl: item.posterUrl,
-                                    releaseDate: item.releaseDate,
-                                    genre: item.genre,
-                                  });
+                                  openMovieAnalytics(item._id);
                                 }}
                                 className="p-2 hover:bg-gray-800 rounded transition-colors"
                                 aria-label="View analytics"
@@ -1267,15 +1250,7 @@ export default function ContentPage() {
                   paginatedContent.map((item) => (
                     <div
                       key={item._id}
-                      onClick={() =>
-                        setSelectedMovie({
-                          id: item._id,
-                          title: item.title,
-                          posterUrl: item.posterUrl,
-                          releaseDate: item.releaseDate,
-                          genre: item.genre,
-                        })
-                      }
+                      onClick={() => openMovieAnalytics(item._id)}
                       className="p-4 border-b border-gray-800 cursor-pointer hover:bg-[#242424] transition-colors"
                     >
                       <div className="flex items-start justify-between mb-3">
@@ -1317,13 +1292,7 @@ export default function ContentPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedMovie({
-                                id: item._id,
-                                title: item.title,
-                                posterUrl: item.posterUrl,
-                                releaseDate: item.releaseDate,
-                                genre: item.genre,
-                              });
+                              openMovieAnalytics(item._id);
                             }}
                             className="p-2 hover:bg-gray-800 rounded transition-colors"
                             title="View Analytics"
@@ -1709,15 +1678,6 @@ export default function ContentPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Movie Analytics Modal */}
-      <MovieAnalyticsContainer
-        movieId={selectedMovie?.id || null}
-        title={selectedMovie?.title || ""}
-        posterUrl={selectedMovie?.posterUrl}
-        releaseDate={selectedMovie?.releaseDate}
-        genre={selectedMovie?.genre}
-        onClose={() => setSelectedMovie(null)}
-      />
     </div>
   );
 }

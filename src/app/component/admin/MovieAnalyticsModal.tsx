@@ -31,16 +31,12 @@ interface MovieAnalyticsData {
 }
 
 interface MovieAnalyticsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
   data: MovieAnalyticsData;
   isLoading?: boolean;
   error?: string | null;
 }
 
 export default function MovieAnalyticsModal({
-  isOpen,
-  onClose,
   data,
   isLoading = false,
   error = null,
@@ -48,14 +44,6 @@ export default function MovieAnalyticsModal({
   const [activeTab, setActiveTab] = useState<'overview' | 'views' | 'engagement'>(
     'overview'
   );
-
-  if (!isOpen) return null;
-
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
 
   const formatWatchTime = (seconds?: number) => {
     if (seconds === undefined || seconds < 0) return '—';
@@ -72,45 +60,8 @@ export default function MovieAnalyticsModal({
       : `${hours.toLocaleString()}h`;
   };
 
-  // Full-screen page-like view
   return (
-    <div
-      className="fixed inset-0 bg-black z-50 flex flex-col"
-      onClick={handleBackdropClick}
-    >
-      <div className="w-full h-full bg-[#0a0a0a] overflow-y-auto flex flex-col">
-        {/* Header */}
-        {/* <div className="sticky top-0 bg-[#1a1a1a] border-b border-gray-800 px-6 sm:px-8 py-4 sm:py-6 flex items-start justify-between gap-4 z-10 backdrop-blur-sm">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 truncate">
-              {data.title}
-            </h2>
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-gray-400 text-sm sm:text-base">
-                ID: <span className="font-mono text-gray-300">{data.movieId}</span>
-              </p>
-              <button
-                onClick={handleCopyId}
-                className="p-1 hover:bg-gray-800 rounded transition-colors"
-                title="Copy ID"
-              >
-                {copiedId ? (
-                  <Check className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
-                ) : (
-                  <Copy className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 hover:text-gray-300" />
-                )}
-              </button>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="shrink-0 p-2 hover:bg-gray-800 rounded-lg transition-colors"
-            aria-label="Close analytics"
-          >
-            <X className="w-6 h-6 sm:w-7 sm:h-7 text-gray-400 hover:text-white" />
-          </button>
-        </div> */}
-
+    <div className="w-full bg-[#0a0a0a] flex flex-col">
         {/* Movie Details Bar */}
         <div className="px-6 sm:px-8 py-5 sm:py-6 border-b border-gray-800 bg-[#0f0f0f]">
           <div className="flex gap-5 items-start flex-col sm:flex-row">
@@ -168,7 +119,7 @@ export default function MovieAnalyticsModal({
         </div>
 
         {/* Tabs */}
-        <div className="px-6 sm:px-8 border-b border-gray-800 flex gap-1 bg-[#0f0f0f] sticky top-[100px] z-10">
+        <div className="px-6 sm:px-8 border-b border-gray-800 flex gap-1 bg-[#0f0f0f]">
           <button
             onClick={() => setActiveTab('overview')}
             className={`px-6 py-3 text-base font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'overview'
@@ -274,7 +225,6 @@ export default function MovieAnalyticsModal({
             </div>
           )} */}
         </div>
-      </div>
     </div>
   );
 }

@@ -30,7 +30,7 @@ interface MonthlyViewData {
   watchTime?: number;
 }
 
-interface MovieAnalyticsData {
+export interface MovieAnalyticsData {
   movieId: string;
   title: string;
   posterUrl?: string;
@@ -44,12 +44,7 @@ interface MovieAnalyticsData {
 }
 
 interface MovieAnalyticsContainerProps {
-  movieId: string | null;
-  title: string;
-  posterUrl?: string;
-  releaseDate?: string;
-  genre?: string;
-  onClose: () => void;
+  movieId: string;
 }
 
 interface MovieDetailsResponse {
@@ -87,10 +82,6 @@ async function readSuccessJson<T>(res: Response, fallbackMessage: string): Promi
 async function fetchMovieAnalytics(
   movieId: string,
   token: string | null,
-  fallback: Pick<
-    MovieAnalyticsData,
-    'title' | 'posterUrl' | 'releaseDate' | 'genre'
-  >,
 ): Promise<MovieAnalyticsData> {
   if (!movieId) {
     throw new Error('Movie ID is required');
@@ -130,10 +121,10 @@ async function fetchMovieAnalytics(
 
   return {
     movieId: movie._id ?? movie.id ?? movieId,
-    title: movie.title ?? fallback.title,
-    posterUrl: movie.posterUrl ?? fallback.posterUrl,
-    releaseDate: movie.releaseDate ?? fallback.releaseDate,
-    genre: movie.genre ?? fallback.genre,
+    title: movie.title ?? 'Untitled movie',
+    posterUrl: movie.posterUrl,
+    releaseDate: movie.releaseDate,
+    genre: movie.genre,
     totalViews,
     totalWatchTimeSeconds: analyticsJson.totalWatchTimeSeconds ?? 0,
     uniqueViewers: analyticsJson.uniqueViewers ?? 0,
@@ -144,41 +135,24 @@ async function fetchMovieAnalytics(
 
 export default function MovieAnalyticsContainer({
   movieId,
-  title,
-  posterUrl,
-  releaseDate,
-  genre,
-  onClose,
 }: MovieAnalyticsContainerProps) {
   const token = useAuthToken();
-  const isOpen = movieId !== null;
 
   const fallbackData: MovieAnalyticsData = {
-    movieId: movieId || '',
-    title,
-    posterUrl,
-    releaseDate,
-    genre,
+    movieId,
+    title: 'Loading movie...',
     monthlyData: [],
     engagementData: [],
   };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['movie-analytics', movieId, token],
-    queryFn: () =>
-      fetchMovieAnalytics(movieId!, token, {
-        title,
-        posterUrl,
-        releaseDate,
-        genre,
-      }),
-    enabled: isOpen && !!movieId,
+    queryFn: () => fetchMovieAnalytics(movieId, token),
+    enabled: !!movieId,
   });
 
   return (
     <MovieAnalyticsModal
-      isOpen={isOpen}
-      onClose={onClose}
       data={data || fallbackData}
       isLoading={isLoading}
       error={error instanceof Error ? error.message : null}
