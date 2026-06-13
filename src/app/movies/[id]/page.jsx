@@ -5,7 +5,7 @@ import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { FaPlay, FaPlus } from 'react-icons/fa6';
+import { FaPlay } from 'react-icons/fa6';
 import { AiFillLike, AiOutlineLike } from "react-icons/ai";
 import { MdAirplay, MdCheckCircle, MdError } from "react-icons/md";
 import { AiOutlineStar, AiFillStar } from 'react-icons/ai';
