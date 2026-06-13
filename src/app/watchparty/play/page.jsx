@@ -1550,7 +1550,7 @@ const WatchPartyPlayer = () => {
   const renderCameraTiles = () => (
     <div className="flex w-full flex-col gap-2">
       {localStream ? (
-        <div className="relative h-10 w-full overflow-hidden rounded-md border border-blue-500 bg-black md:h-20 sm:h-15">
+        <div className="relative h-20 w-full overflow-hidden rounded-md border border-blue-500 bg-black md:h-20 sm:h-20">
           <video
             autoPlay
             muted
