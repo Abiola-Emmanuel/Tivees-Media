@@ -16,6 +16,11 @@ const CORS_HEADERS = {
   "Access-Control-Expose-Headers": "Location, Upload-Offset, Upload-Length, stream-media-id",
 };
 
+const ALLOWED_TARGET_HOSTS = new Set([
+  "api.cloudflare.com",
+  "edge-production.gateway.api.cloudflare.com",
+]);
+
 function forwardHeaders(request: NextRequest): Record<string, string> {
   const headers: Record<string, string> = {};
   if (CF_API_TOKEN) {
@@ -33,6 +38,15 @@ function forwardHeaders(request: NextRequest): Record<string, string> {
     if (val) headers[name] = val;
   }
   return headers;
+}
+
+function isAllowedTarget(targetUrl: URL): boolean {
+  return (
+    targetUrl.protocol === "https:" &&
+    ALLOWED_TARGET_HOSTS.has(targetUrl.hostname) &&
+    targetUrl.pathname.includes("/client/v4/accounts/") &&
+    targetUrl.pathname.includes("/media/")
+  );
 }
 
 export async function PATCH(request: NextRequest) {
@@ -54,15 +68,27 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
+  if (!isAllowedTarget(targetUrl)) {
+    return NextResponse.json(
+      { error: "Upload target is not allowed" },
+      { status: 400, headers: CORS_HEADERS },
+    );
+  }
+
   const headers = forwardHeaders(request);
 
   try {
-    const body = await request.arrayBuffer();
-    const res = await fetch(targetUrl.toString(), {
+    const fetchOptions: RequestInit & { duplex?: "half" } = {
       method: "PATCH",
       headers,
-      body: body.byteLength > 0 ? body : undefined,
-    });
+      body: request.body ?? undefined,
+    };
+
+    if (request.body) {
+      fetchOptions.duplex = "half";
+    }
+
+    const res = await fetch(targetUrl.toString(), fetchOptions);
 
     const responseHeaders = new Headers(CORS_HEADERS);
     const copyHeaders = [
@@ -77,8 +103,7 @@ export async function PATCH(request: NextRequest) {
       if (val) responseHeaders.set(name, val);
     }
 
-    const resBody = res.status === 204 ? null : await res.arrayBuffer();
-    return new NextResponse(resBody, {
+    return new NextResponse(res.status === 204 ? null : res.body, {
       status: res.status,
       statusText: res.statusText,
       headers: responseHeaders,
@@ -110,6 +135,13 @@ export async function HEAD(request: NextRequest) {
   try {
     targetUrl = new URL(target);
   } catch {
+    return new NextResponse(null, {
+      status: 400,
+      headers: CORS_HEADERS,
+    });
+  }
+
+  if (!isAllowedTarget(targetUrl)) {
     return new NextResponse(null, {
       status: 400,
       headers: CORS_HEADERS,
