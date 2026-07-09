@@ -171,7 +171,7 @@ const CategoriesSection = () => {
                   swiperRef.current = swiper;
                 }}
                 modules={[Navigation, Pagination, Autoplay]}
-                spaceBetween={20}
+                spaceBetween={15}
                 slidesPerView={1}
                 pagination={{ clickable: true }}
                 breakpoints={{
@@ -180,15 +180,15 @@ const CategoriesSection = () => {
                     spaceBetween: 20,
                   },
                   768: {
-                    slidesPerView: 3,
+                    slidesPerView: 2,
                     spaceBetween: 25,
                   },
                   1024: {
-                    slidesPerView: 4,
+                    slidesPerView: 2,
                     spaceBetween: 30,
                   },
                   1280: {
-                    slidesPerView: 5,
+                    slidesPerView: 3,
                     spaceBetween: 30,
                   },
                 }}
@@ -209,9 +209,9 @@ const CategoriesSection = () => {
                     >
                       <div className={`
                         relative overflow-hidden rounded-2xl
-                        w-full h-90 md:w-[300px] md:h-70 sm:h-96 md:h-80 
-                        transition-all duration-300
-                        flex flex-col
+                        w-full h-56 sm:h-64 md:h-44 lg:h-58
+                        transition-all duration-300 
+                        flex flex-col mt-5
                       `}>
                         <Image
                           src={category.image}

@@ -130,7 +130,7 @@ function HeroCarousel({ onSearchClick }) {
           modules={[Navigation, Autoplay, EffectFade]}
           spaceBetween={0}
           slidesPerView={1}
-          navigation
+          // navigation
           autoplay={{ delay: 6500, disableOnInteraction: false }}
           loop
           effect="fade"
@@ -150,6 +150,17 @@ function HeroCarousel({ onSearchClick }) {
                   quality={90}
                 />
 
+                <div className='absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-5 flex items-center justify-center'>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/movies/${movie._id}`)}
+                    className='rounded-full border-4 border-white p-4 sm:p-5 md:p-6 flex items-center justify-center cursor-pointer transition-colors hover:border-[#fe2d5366]'
+                  >
+                    <FaPlay
+                      className='text-[#f50303aa] text-6xl sm:text-7xl md:text-8xl transition-colors hover:text-[#fe2d5366]' />
+                  </button>
+                </div>
+
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
                 <div className="absolute bottom-0 inset-0 bg-gradient-to-r from-black/5 to-transparent" />
 
@@ -159,25 +170,24 @@ function HeroCarousel({ onSearchClick }) {
                   variants={textVariants}
                   className="absolute bottom-20 left-0 right-0 p-6 sm:p-8 z-10 text-center  flex flex-col gap-2 items-center justify-center"
                 >
-                  <div className="max-w-4xl">
+                  {/* <div className="max-w-4xl">
                     <motion.h1
                       variants={textVariants}
                       className="text-white text-3xl sm:text-4xl md:text-2xl  xl:text-7xl font-semibold mb-3 sm:mb-4 leading-[1.2]"
                     >
                       {movie.title}
                     </motion.h1>
-                  </div>
+                  </div> */}
 
-                  <div className="max-w-3xl">
+                  {/* <div className="max-w-3xl">
                     <motion.p
                       variants={textVariants}
                       className="text-neutral-400 text-sm sm:text-lg md:text-md font-normal hidden md:flex mb-3 sm:mb-4 leading-[1.2]"
                     >
-                      {/* {movie.description} */}
                     </motion.p>
-                  </div>
+                  </div> */}
 
-                  <div className='flex items-center gap-3'>
+                  {/* <div className='flex items-center gap-3'>
                     <button
                       onClick={() => router.push(`/movies/${movie._id}`)}
                       className='text-white bg-[#E50000] py-2 sm:py-2.5 md:py-2 px-5 sm:px-6 md:px-8 rounded-lg text-sm sm:text-base md:text-lg hover:bg-red-700 transition-colors flex items-center gap-2 bg-'>
@@ -186,7 +196,9 @@ function HeroCarousel({ onSearchClick }) {
                     </button>
 
 
-                  </div>
+                  </div> */}
+
+
 
 
 

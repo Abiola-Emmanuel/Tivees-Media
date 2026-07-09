@@ -6,9 +6,10 @@ import CategoriesSection from '@/components/Categories'
 import Footer from '@/components/Footer'
 import FreeTrial from '@/components/FreeTrial'
 import HeroCarousel from '@/components/HeroCarousel'
-import { motion } from 'framer-motion'
 import MovieRow from '@/components/MovieRow'
 import { useRouter } from 'next/navigation'
+import { CiSearch } from 'react-icons/ci'
+import { IoClose } from 'react-icons/io5'
 
 const normalizeMovieTags = (payload = []) => {
   if (!Array.isArray(payload)) {
@@ -39,8 +40,10 @@ const Movies = () => {
   const [searchResults, setSearchResults] = useState([])
   const [showResults, setShowResults] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(null)
   const debounceTimerRef = useRef(null)
+  const searchInputRef = useRef(null)
   const url = process.env.NEXT_PUBLIC_BACKEND_URL
   const router = useRouter()
 
@@ -102,6 +105,12 @@ const Movies = () => {
     fetchMoviesByTag()
   }, [url])
 
+  useEffect(() => {
+    if (isSearchOpen) {
+      searchInputRef.current?.focus()
+    }
+  }, [isSearchOpen])
+
   const handleSearchChange = (e) => {
     const query = e.target.value
     setSearchQuery(query)
@@ -147,9 +156,30 @@ const Movies = () => {
 
   const handleMovieSelect = (movieId) => {
     setSearchQuery('')
+    setIsSearchOpen(false)
     setShowResults(false)
     setSearchResults([])
     router.push(`/movies/${movieId}`)
+  }
+
+  const handleCloseSearch = () => {
+    setIsSearchOpen(false)
+    setSearchQuery('')
+    setSearchResults([])
+    setShowResults(false)
+  }
+
+  const handleToggleSearch = () => {
+    if (isSearchOpen) {
+      handleCloseSearch()
+      return
+    }
+
+    setIsSearchOpen(true)
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
   }
 
   if (isAuthenticated === false) {
@@ -163,53 +193,76 @@ const Movies = () => {
 
   return (
     <>
-      <HeroCarousel />
+      <section className='relative'>
+        <HeroCarousel onSearchClick={handleToggleSearch} />
+
+        {isSearchOpen && (
+          <>
+            <button
+              type='button'
+              aria-label='Close search overlay'
+              onClick={handleCloseSearch}
+              className='absolute inset-0 z-30 cursor-default bg-black/45 backdrop-blur-[1px]'
+            />
+
+            <div
+              id="movie-search"
+              className='absolute left-1/2 top-24 z-40 w-[90%] max-w-2xl -translate-x-1/2 sm:top-28 md:top-32'
+            >
+              <div className='relative'>
+                <CiSearch className='pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-2xl text-white/70' />
+                <input
+                  ref={searchInputRef}
+                  type='text'
+                  placeholder='Search movies, shows, genres...'
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className='w-full rounded-2xl border border-white/20 bg-black/45 py-3 pl-12 pr-12 text-sm text-white shadow-2xl shadow-black/40 outline-none backdrop-blur-md transition-all placeholder:text-white/55 focus:border-white/55 focus:bg-black/65 sm:py-3.5 sm:text-base'
+                />
+                <button
+                  type='button'
+                  onClick={handleCloseSearch}
+                  className='absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white'
+                  aria-label='Close search'
+                >
+                  <IoClose className='text-xl' />
+                </button>
+
+                {showResults && (
+                  <div className='absolute left-0 right-0 top-full z-50 mt-3 max-h-72 overflow-y-auto rounded-2xl border border-white/15 bg-[#080808]/95 shadow-2xl shadow-black/50 backdrop-blur-md'>
+                    {searchLoading ? (
+                      <div className='p-4 text-center text-gray-400'>
+                        <div className='animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-[#E50000] mx-auto'></div>
+                      </div>
+                    ) : searchResults.length === 0 ? (
+                      <div className='p-4 text-center text-gray-400'>
+                        No movies found
+                      </div>
+                    ) : (
+                      <ul>
+                        {searchResults.map((movie) => (
+                          <li
+                            key={movie._id}
+                            onClick={() => handleMovieSelect(movie._id)}
+                            className='cursor-pointer border-b border-white/10 px-4 py-3 text-sm text-white transition-colors last:border-b-0 hover:bg-white/10 sm:text-base'
+                          >
+                            {movie.title}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </section>
 
 
       <div className='relative w-[90%]  mx-auto my-30 '>
 
-        <div className='flex gap-3 mb-8 relative'>
-          <div className='flex-1 relative' id="movie-search">
-            <input
-              type='text'
-              placeholder='Search movies...'
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className='w-full px-4 py-2 sm:py-2.5 md:py-3 rounded-lg  text-white placeholder-gray-400 border border-neutral-100 focus:outline-none focus:border-[#fff] transition-colors text-sm sm:text-base'
-            />
-
-            {showResults && (
-              <div className='absolute top-full left-0 right-0 mt-2 bg-black border border-neutral-700 rounded-lg shadow-lg z-50 max-h-66 overflow-y-auto'>
-                {searchLoading ? (
-                  <div className='p-4 text-center text-gray-400'>
-                    <div className='animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-[#E50000] mx-auto'></div>
-                  </div>
-                ) : searchResults.length === 0 ? (
-                  <div className='p-4 text-center text-gray-400'>
-                    No movies found
-                  </div>
-                ) : (
-                  <ul>
-                    {searchResults.map((movie) => (
-                      <li
-                        key={movie._id}
-                        onClick={() => handleMovieSelect(movie._id)}
-                        className='px-4 py-3 text-white hover:bg-neutral-700 cursor-pointer transition-colors border-b border-neutral-700 last:border-b-0'
-                      >
-                        {movie.title}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-
-
-        </div>
-
-
-        <div className='bg-[#E50000] flex items-center justify-center gap-2 text-white py-2 sm:py-2.5 md:py-2 px-5 sm:px-6 md:px-8 rounded-lg text-sm sm:text-base md:text-lg hover:bg-red-700 transition-colors w-20 absolute top-20 left-10'>Movies</div>
+        <div className='bg-[#E50000] flex items-center justify-center gap-2 text-white py-2 sm:py-2.5 md:py-2 px-5 sm:px-6 md:px-8 rounded-lg text-sm sm:text-base md:text-lg hover:bg-red-700 transition-colors w-20 absolute top-10 left-10'>Movies</div>
 
 
         <div>

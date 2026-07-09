@@ -11,7 +11,7 @@ import { IoClose } from "react-icons/io5";
 import { useRouter } from 'next/navigation';
 import { useEffect, useCallback } from 'react';
 
-const Navbar = () => {
+const Navbar = ({ onSearchClick }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -54,6 +54,11 @@ const Navbar = () => {
   }, []);
 
   const handleSearchClick = () => {
+    if (onSearchClick) {
+      onSearchClick();
+      return;
+    }
+
     router.push('/movies');
     scrollToSearch();
   };
@@ -220,9 +225,14 @@ const Navbar = () => {
 
             {/* Right Icons */}
             <div className='flex items-center gap-3 md:gap-4'>
-              <CiSearch
+              <button
+                type='button'
                 onClick={handleSearchClick}
-                className='text-white hidden md:flex text-xl md:text-2xl cursor-pointer hover:text-red-500 transition-colors' />
+                className='flex text-white text-2xl cursor-pointer transition-colors hover:text-red-500 md:text-2xl'
+                aria-label='Search movies'
+              >
+                <CiSearch />
+              </button>
               <div ref={notificationRef} className='relative hidden md:block'>
                 <button
                   type='button'

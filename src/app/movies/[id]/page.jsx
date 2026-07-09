@@ -269,8 +269,15 @@ export default function MoviePage({ params }) {
     return (
       <div className="min-h-screen bg-black text-white">
         <Navbar />
-        <div className="flex items-center justify-center h-screen">
+        <div className="flex flex-col items-center justify-center h-screen">
           <p>{error || 'Movie not found'}</p>
+          <button
+            type="button"
+            onClick={() => router.push('/subscriptions')}
+            className="mt-6 rounded-lg bg-[#E50000] px-6 py-3 text-sm font-normal text-white cursor-pointer transition-colors hover:bg-red-700"
+          >
+            Subscribe Now
+          </button>
         </div>
       </div>
     );

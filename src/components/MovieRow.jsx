@@ -92,15 +92,15 @@ const MovieRow = ({ title, movies }) => {
                 spaceBetween: 20,
               },
               768: {
-                slidesPerView: 3,
-                spaceBetween: 25,
+                slidesPerView: 2,
+                spaceBetween: 15,
               },
               1024: {
-                slidesPerView: 4,
+                slidesPerView: 2,
                 spaceBetween: 30,
               },
               1280: {
-                slidesPerView: 5,
+                slidesPerView: 2.5,
                 spaceBetween: 30,
               },
             }}
@@ -116,7 +116,7 @@ const MovieRow = ({ title, movies }) => {
                   onClick={() => router.push(`/movies/${movie._id || movie.id}`)}
                   className="cursor-pointer group"
                 >
-                  <div className="relative w-full h-80 rounded-xl overflow-hidden">
+                  <div className="relative w-full h-56 sm:h-64 md:h-44 lg:h-58 rounded-xl overflow-hidden">
 
                     <Image
                       src={movie.posterUrl || movie.poster}

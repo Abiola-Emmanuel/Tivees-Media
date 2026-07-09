@@ -18,7 +18,7 @@ import Accordion from '@/components/Accordion';
 import FreeTrial from '@/components/FreeTrial';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-
+import HomeHeroCarousel from '@/components/Home-HeroCarousel';
 
 const Main = () => {
   const router = useRouter();
@@ -141,15 +141,17 @@ const Main = () => {
 
         <Navbar />
 
-        <div className=' absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-5 flex items-center justify-center'>
+        {/* <div className=' absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-5 flex items-center justify-center'>
           <FaPlay
-            onClick={() => router.push('/movies')}
-            className='text-[#f5032f66] text-6xl sm:text-7xl md:text-8xl cursor-pointer hover:text-[#fe2d5366] transition-colors' />
-        </div>
+            onClick={() => router.push(`/movies/${}`)}
+            className='text-[#f5032f66] text-8xl sm:text-7xl md:text-9xl cursor-pointer hover:text-[#fe2d5366] transition-colors' />
+        </div> */}
 
-        <div className='absolute top-0 left-0 right-0 h-1/2 bg-[#1414148d] z-2'></div>
+        <HomeHeroCarousel />
 
-        <div className='absolute bottom-0 left-0 right-0 h-1/2 bg-[#14141488] z-2'></div>
+        {/* <div className='absolute top-0 left-0 right-0 h-1/2 bg-[#1414148d] z-2'></div>
+
+      <div className='absolute bottom-0 left-0 right-0 h-1/2 bg-[#14141488] z-2'></div>
 
         <div className='relative w-full h-40 '>
           <Image
@@ -186,11 +188,11 @@ const Main = () => {
             alt='Hero Image'
             className='absolute w-full h-full object-cover'
           />
-        </div>
+        </div> */}
       </div>
 
       {/* Hero Text Section  */}
-      <div className='flex flex-col justify-center items-center gap-3 sm:gap-4 md:gap-5 z-10 w-[90%] mx-auto -translate-y-10 sm:-translate-y-12 md:-translate-y-15 text-center'>
+      <div className='flex flex-col justify-center mt-5 items-center gap-3 sm:gap-4 md:gap-5 z-10 w-[90%] mx-auto -translate-y-10 sm:-translate-y-12 md:-translate-y-15 text-center'>
         <h1 className='text-white font-normal text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-[48px] leading-[130%] sm:leading-[140%] md:leading-[150%]'>
           The Best Streaming Experience
         </h1>
