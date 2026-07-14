@@ -213,12 +213,12 @@ const WatchParty = () => {
           transition={{ duration: 0.5 }}
         >
 
-          <div className="w-full h-screen relative overflow-hidden">
+          <div className="w-full relative overflow-hidden mb-20">
 
             <Navbar />
 
 
-            <button
+            {/* <button
               onClick={() => router.back()}
               className="absolute top-20 left-6 z-20  cursor-pointer transition text-white"
             >
@@ -258,7 +258,7 @@ const WatchParty = () => {
                   Start a Watch Party and enjoy together
                 </motion.p>
               </div>
-            </motion.div>
+            </motion.div> */}
           </div>
 
           <motion.div
