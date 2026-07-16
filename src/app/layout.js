@@ -9,7 +9,7 @@ const manrope = Manrope({
 
 export const metadata = {
   title: "TIVEES MEDIA",
-  description: "TIVEES MEDIA is a media company that provides high-quality content and services to its clients. We specialize in creating engaging and innovative media solutions that help businesses and individuals connect with their audiences. Our team of experts is dedicated to delivering exceptional results and exceeding our clients' expectations.",
+  description: "TIVEES MEDIA is a media company that provides high-quality content and services to its clients. We specialize in creating engaging and innovative media solutions that help businesses and individuals connect with their audiences. Our team of experts is dedicated to delivering exceptional results and exceeding our clients' expectations....",
   icons: {
     icon: "/favicon.png"
   }
