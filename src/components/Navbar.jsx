@@ -101,17 +101,23 @@ const Navbar = ({ onSearchClick }) => {
           Authorization: `Bearer ${authToken}`
         }
       });
+
+      console.log('Notification response:', response);
+      console.log('Notification response data:', response?.data);
       const fetchedNotifications = Array.isArray(response.data?.notifications) ? response.data.notifications : [];
       setNotifications(fetchedNotifications);
 
       if (markAsSeen && fetchedNotifications.some(isNotificationUnread)) {
-        await axios.patch(`${url}/api/v1/users/notification`, {
+        const patchResponse = await axios.patch(`${url}/api/v1/users/notification`, {
           status: 'seen'
         }, {
           headers: {
             Authorization: `Bearer ${authToken}`
           }
         });
+
+        console.log('Notification mark-as-seen response:', patchResponse);
+        console.log('Notification mark-as-seen response data:', patchResponse?.data);
 
         setNotifications((currentNotifications) => (
           currentNotifications.map((notification) => ({

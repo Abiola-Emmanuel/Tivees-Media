@@ -49,14 +49,14 @@ const MovieRow = ({ title, movies }) => {
 
 
       <div className="w-full mx-auto px-4 sm:px-6 md:px-8 py-5">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center">
           <h2 className="text-white text-xl md:text-2xl font-semibold">
             {title}
           </h2>
 
         </div>
 
-        <div className="flex  justify-end gap-3 items-center mb-6">
+        <div className="flex  justify-end gap-3 items-center">
           <button
             onClick={() => swiperRef.current?.slidePrev()}
             className="w-10 h-10 rounded-lg cursor-pointer bg-white/10 hover:bg-red-600 text-white flex items-center justify-center transition-all duration-300 hover:scale-110"
@@ -84,7 +84,7 @@ const MovieRow = ({ title, movies }) => {
             }}
             modules={[Navigation, Pagination, Autoplay]}
             spaceBetween={20}
-            slidesPerView={1}
+            slidesPerView={2}
             pagination={{ clickable: true }}
             breakpoints={{
               640: {
@@ -96,11 +96,11 @@ const MovieRow = ({ title, movies }) => {
                 spaceBetween: 15,
               },
               1024: {
-                slidesPerView: 2,
+                slidesPerView: 4,
                 spaceBetween: 30,
               },
               1280: {
-                slidesPerView: 2.5,
+                slidesPerView: 4,
                 spaceBetween: 30,
               },
             }}
@@ -116,7 +116,7 @@ const MovieRow = ({ title, movies }) => {
                   onClick={() => router.push(`/movies/${movie._id || movie.id}`)}
                   className="cursor-pointer group"
                 >
-                  <div className="relative w-full h-56 sm:h-64 md:h-44 lg:h-58 rounded-xl overflow-hidden">
+                  <div className="relative w-full h-36 rounded-xl overflow-hidden bg-white/5">
 
                     <Image
                       src={movie.posterUrl || movie.poster}
@@ -125,7 +125,7 @@ const MovieRow = ({ title, movies }) => {
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
                     />
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-70" />
+                    <div className="absolute inset-0 bg-linear-to-t from-black via-black/40 to-transparent opacity-70" />
 
                     <div className="absolute bottom-3 left-3 right-3">
                       <h3 className="text-white text-sm md:text-base font-semibold">

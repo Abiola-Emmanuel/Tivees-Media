@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import axios from 'axios';
 import { MdClose, MdShare, MdPerson, MdMessage, MdVideocam, MdVideocamOff, MdVolumeOff, MdVolumeUp } from 'react-icons/md';
 import AttendeesPanel from '@/components/AttendesPanel';
 import CommentsPanel from '@/components/CommentsPanel';
@@ -1400,10 +1401,44 @@ const WatchPartyPlayer = () => {
     };
   }, [partyId, cfid, userId, playerReady, markWatchPartyEnded]);
 
-  const handleShareParty = () => {
+  const handleShareParty = async () => {
     const shareUrl = `${window.location.origin}/watchparty/play?partyId=${partyId}&cfid=${cfid}${movieId ? `&movieId=${movieId}` : ''}`;
-    navigator.clipboard.writeText(shareUrl);
-    alert('Watch party link copied!');
+
+    try {
+      const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('authToken') : '';
+      const response = await axios.post(`${API_BASE_URL}/api/v1/users/shorten-link`, {
+        originalUrl: shareUrl,
+      }, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+
+      const rawPayload = response?.data;
+      const shortenedUrl =
+        rawPayload?.data?.shortUrl || null;
+
+      if (shortenedUrl) {
+        await navigator.clipboard.writeText(shortenedUrl);
+        alert('Watch party link copied!');
+      } else {
+        console.log('No shortened URL found in response payload:', rawPayload);
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Watch party link copied!');
+      }
+    } catch (error) {
+      console.error('Failed to shorten watch party link:', error);
+
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Watch party link copied!');
+      } catch (copyError) {
+        console.error('Failed to copy watch party link:', copyError);
+        alert('Could not copy watch party link');
+      }
+    }
   };
 
   const handleReloadPage = () => {

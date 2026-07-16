@@ -101,8 +101,8 @@ export default function GenrePage({ params }) {
           </motion.div>
         </div>
       </section>
-      <div className="pb-20 -mt-20 relative z-20 w-[90%] mx-auto">
-        <section className="w-full px-4 sm:px-6 md:px-8 py-5">
+      <div className="pb-20 -mt-20 relative z-20 w-[95%] mx-auto">
+        <section className="w-full px-2 sm:px-4 md:px-6 py-5">
           <h2 className="text-white text-xl md:text-2xl font-semibold mb-6">
             {genreName} Movies
           </h2>
@@ -127,7 +127,7 @@ export default function GenrePage({ params }) {
                   }
                 }
               }}
-              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 md:gap-6"
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-5 md:gap-6"
             >
               {movies.map((movie) => {
                 const movieId = movie._id || movie.id;
@@ -143,7 +143,7 @@ export default function GenrePage({ params }) {
                     onClick={() => router.push(`/movies/${movieId}`)}
                     className="cursor-pointer group"
                   >
-                    <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-white/5">
+                    <div className="relative w-full h-36 rounded-xl overflow-hidden bg-white/5">
                       <Image
                         src={movie.posterUrl || movie.poster || movie.backdrop || "/hero1.png"}
                         alt={movie.title || "Movie poster"}

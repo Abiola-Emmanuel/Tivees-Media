@@ -260,7 +260,7 @@ const Movies = () => {
       </section>
 
 
-      <div className='relative w-[90%]  mx-auto my-30 '>
+      <div className='relative w-[95%]  mx-auto my-30 '>
 
         <div className='bg-[#E50000] flex items-center justify-center gap-2 text-white py-2 sm:py-2.5 md:py-2 px-5 sm:px-6 md:px-8 rounded-lg text-sm sm:text-base md:text-lg hover:bg-red-700 transition-colors w-20 absolute top-10 left-10'>Movies</div>
 

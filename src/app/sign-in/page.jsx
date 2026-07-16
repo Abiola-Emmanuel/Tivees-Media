@@ -40,6 +40,15 @@ const SignIn = () => {
 
   const url = `${API_BASE_URL}/api/v1`
 
+  useEffect(() => {
+    const authToken = localStorage.getItem('authToken')
+    const userString = localStorage.getItem('user')
+
+    if (authToken && userString) {
+      router.push('/movies')
+    }
+  }, [router])
+
   const handleGoogleResponse = useEffectEvent(async (response) => {
     const token = response?.credential
 
@@ -137,10 +146,8 @@ const SignIn = () => {
 
       console.log('Email sign-up response:', response.data)
 
-      if (response.data.status === 'SUCCESS' && response.data.token) {
-        localStorage.setItem('authToken', response.data.token)
-        localStorage.setItem('user', JSON.stringify(response.data.user))
-        router.push('/login')
+      if (response.data.status === 'PENDING_VERIFICATION') {
+        router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`)
       }
     } catch (error) {
       console.error('Sign up error:', error.response?.data || error.message)

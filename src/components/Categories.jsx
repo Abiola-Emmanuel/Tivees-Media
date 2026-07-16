@@ -172,7 +172,7 @@ const CategoriesSection = () => {
                 }}
                 modules={[Navigation, Pagination, Autoplay]}
                 spaceBetween={15}
-                slidesPerView={1}
+                slidesPerView={2}
                 pagination={{ clickable: true }}
                 breakpoints={{
                   640: {
@@ -184,11 +184,11 @@ const CategoriesSection = () => {
                     spaceBetween: 25,
                   },
                   1024: {
-                    slidesPerView: 2,
+                    slidesPerView: 4,
                     spaceBetween: 30,
                   },
                   1280: {
-                    slidesPerView: 3,
+                    slidesPerView: 4,
                     spaceBetween: 30,
                   },
                 }}
@@ -208,10 +208,10 @@ const CategoriesSection = () => {
                       onClick={() => router.push(category.route)}
                     >
                       <div className={`
-                        relative overflow-hidden rounded-2xl
-                        w-full h-56 sm:h-64 md:h-44 lg:h-58
+                        relative overflow-hidden rounded-xl
+                        w-full h-36
                         transition-all duration-300 
-                        flex flex-col mt-5
+                        flex flex-col mt-5 bg-white/5
                       `}>
                         <Image
                           src={category.image}
@@ -221,7 +221,7 @@ const CategoriesSection = () => {
                           sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
                         />
 
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-60 group-hover:opacity-70 transition-opacity duration-300" />
+                        <div className="absolute inset-0 bg-linear-to-t from-black via-black/40 to-transparent opacity-60 group-hover:opacity-70 transition-opacity duration-300" />
 
                         <div className="absolute -bottom-5 left-0 right-0 p-4 md:p-6 transform translate-y-0 transition-transform duration-300 group-hover:-translate-y-2 z-10">
                           <h3 className="text-white flex justify-between items-center text-xl md:text-lg font-semibold mb-1 md:mb-2">

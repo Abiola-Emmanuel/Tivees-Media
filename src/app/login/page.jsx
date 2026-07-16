@@ -38,6 +38,15 @@ const SignIn = () => {
 
   const url = `${API_BASE_URL}/api/v1`
 
+  useEffect(() => {
+    const authToken = localStorage.getItem('authToken')
+    const userString = localStorage.getItem('user')
+
+    if (authToken && userString) {
+      router.push('/movies')
+    }
+  }, [router])
+
   const handleGoogleResponse = useEffectEvent(async (response) => {
     const token = response?.credential
 
@@ -141,7 +150,7 @@ const SignIn = () => {
           console.warn('Login response did not include user data. User information not stored in localStorage.')
         }
 
-        router.push('/main')
+        router.push('/movies')
       }
     } catch (error) {
       console.error('Login error:', error.response?.data || error.message)
