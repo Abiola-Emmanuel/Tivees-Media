@@ -238,7 +238,7 @@ const Main = () => {
         variants={containerVariants}
         className="py-12 sm:py-16 md:py-20 lg:py-24 w-[90%] md:w-full mx-auto"
       >
-        <div className="container mx-auto px-2 sm:px-6 md:px-8">
+        <div className="container  mx-auto px-2 sm:px-6 md:px-8">
           {/* Header  */}
           <motion.div variants={itemVariants} className="flex flex-col text-left items-start mb-8 sm:mb-12 md:mb-16 lg:mb-20">
             <motion.h2

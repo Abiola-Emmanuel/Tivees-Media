@@ -279,6 +279,7 @@ const Movies = () => {
           </div>
         ) : (
           <>
+            <div id="tags"></div>
             {movieCategories.map((category) => (
               <MovieRow
                 key={category.category}

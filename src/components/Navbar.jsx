@@ -10,6 +10,8 @@ import { HiMenuAlt3 } from "react-icons/hi";
 import { IoClose } from "react-icons/io5";
 import { useRouter } from 'next/navigation';
 import { useEffect, useCallback } from 'react';
+import { FaPlay } from 'react-icons/fa6'
+import NavLinks from './NavLinks'
 
 const Navbar = ({ onSearchClick }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -17,15 +19,9 @@ const Navbar = ({ onSearchClick }) => {
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState('');
+  const [isSubscribed, setIsSubscribed] = useState(false);
   const notificationRef = useRef(null);
   const url = process.env.NEXT_PUBLIC_BACKEND_URL;
-
-  const navLinks = [
-    { name: 'Home', href: '/main' },
-    { name: 'Movies', href: '/movies' },
-    { name: 'Support', href: '/support' },
-    { name: 'Subscriptions', href: '/subscriptions' },
-  ]
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -65,6 +61,15 @@ const Navbar = ({ onSearchClick }) => {
 
   const toggleNotifications = () => {
     setIsNotificationOpen((current) => !current);
+  };
+
+  const handleNotificationPlay = (notification) => {
+    if (!notification?.movieId) {
+      return;
+    }
+
+    setIsNotificationOpen(false);
+    router.push(`/movies/${notification.movieId}`);
   };
 
   const isNotificationUnread = (notification) => notification.status?.toLowerCase() === 'unseen';
@@ -157,6 +162,18 @@ const Navbar = ({ onSearchClick }) => {
   }, []);
 
   useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        const subscriptionStatus = parsedUser?.subscriptionStatus || '';
+        setIsSubscribed(subscriptionStatus.toLowerCase() === 'active');
+      } catch (error) {
+        console.error('Unable to parse stored user for navbar links:', error);
+      }
+    }
+
     fetchNotifications({ logInitialResponse: true });
   }, [fetchNotifications]);
 
@@ -218,15 +235,11 @@ const Navbar = ({ onSearchClick }) => {
 
             {/* Desktop Navigation */}
             <div className='hidden md:flex bg-[#0F0F0F] rounded-lg items-center justify-between px-2 py-2 gap-1'>
-              {navLinks.map((link, index) => (
-                <Link
-                  key={index}
-                  href={link.href}
-                  className='text-white hover:bg-[#1F1F1F] h-10 text-sm font-normal transition-colors flex justify-center items-center px-4 rounded-lg whitespace-nowrap'
-                >
-                  {link.name}
-                </Link>
-              ))}
+              <NavLinks
+                isSubscribed={isSubscribed}
+                linkClassName='text-white hover:bg-[#1F1F1F] h-10 text-sm font-normal transition-colors flex justify-center items-center px-4 rounded-lg whitespace-nowrap'
+                itemClassName='flex'
+              />
             </div>
 
             {/* Right Icons */}
@@ -239,7 +252,7 @@ const Navbar = ({ onSearchClick }) => {
               >
                 <CiSearch />
               </button>
-              <div ref={notificationRef} className='relative hidden md:block'>
+              <div ref={notificationRef} className='relative block'>
                 <button
                   type='button'
                   onClick={toggleNotifications}
@@ -298,27 +311,56 @@ const Navbar = ({ onSearchClick }) => {
                                 key={notification._id}
                                 className='border-b border-white/10 px-4 py-3 last:border-b-0'
                               >
-                                <div className='mb-1 flex items-start justify-between gap-3'>
-                                  <div className='flex min-w-0 items-start gap-2'>
-                                    {isUnread ? (
-                                      <span className='mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-500'></span>
-                                    ) : null}
-                                    <p className='line-clamp-1 text-sm font-medium'>
-                                      {notification.title}
+                                <div className='mb-2 flex items-start gap-3'>
+                                  {notification.posterUrl ? (
+                                    <div className='relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-white/10'>
+                                      <Image
+                                        src={notification.posterUrl}
+                                        alt={notification.title || 'Notification poster'}
+                                        width={56}
+                                        height={56}
+                                        unoptimized
+                                        className='h-full w-full object-cover'
+                                        loading='lazy'
+                                      />
+                                      <div className='absolute inset-0 bg-black/45' />
+                                      <button
+                                        type='button'
+                                        onClick={() => handleNotificationPlay(notification)}
+                                        aria-label={`Play notification movie ${notification.title || ''}`.trim()}
+                                        className='absolute inset-0 flex items-center justify-center'
+                                      >
+                                        <span className='flex h-7 w-7 items-center justify-center rounded-full bg-white/85 text-black shadow-lg transition hover:bg-white/75'>
+                                          <FaPlay className='ml-0.5 h-3 w-3 font-light' />
+                                        </span>
+                                      </button>
+                                    </div>
+                                  ) : null}
+
+                                  <div className='min-w-0 flex-1'>
+                                    <div className='mb-1 flex items-start justify-between gap-3'>
+                                      <div className='flex min-w-0 items-start gap-2'>
+                                        {isUnread ? (
+                                          <span className='mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-500'></span>
+                                        ) : null}
+                                        <p className='line-clamp-1 text-sm font-medium'>
+                                          {notification.title}
+                                        </p>
+                                      </div>
+                                      <span className='shrink-0 text-[11px] text-neutral-500'>
+                                        {formatNotificationDate(notification.createdAt || notification.timeAgo)}
+                                      </span>
+                                    </div>
+
+                                    <p className='line-clamp-2 text-xs leading-5 text-neutral-400'>
+                                      {notification.message}
                                     </p>
+
+                                    <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${isUnread ? 'bg-red-500/10 text-red-100' : 'bg-white/5 text-neutral-400'}`}>
+                                      {notification.status}
+                                    </span>
                                   </div>
-                                  <span className='shrink-0 text-[11px] text-neutral-500'>
-                                    {formatNotificationDate(notification.timeAgo)}
-                                  </span>
                                 </div>
-
-                                <p className='line-clamp-2 text-xs leading-5 text-neutral-400'>
-                                  {notification.message}
-                                </p>
-
-                                <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${isUnread ? 'bg-red-500/10 text-red-100' : 'bg-white/5 text-neutral-400'}`}>
-                                  {notification.status}
-                                </span>
                               </div>
                             );
                           })
@@ -376,24 +418,23 @@ const Navbar = ({ onSearchClick }) => {
 
               {/* Navigation Links */}
               <div className="flex flex-col items-center gap-6">
-                {navLinks.map((link, index) => (
-                  <motion.div
-                    key={index}
-                    custom={index}
-                    variants={linkVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="hidden"
-                  >
-                    <Link
-                      href={link.href}
-                      onClick={closeMenu}
-                      className="text-white text-2xl font-medium hover:text-red-500 transition-colors py-2 block"
+                <NavLinks
+                  isSubscribed={isSubscribed}
+                  onClick={closeMenu}
+                  renderItem={({ link, index, children }) => (
+                    <motion.div
+                      key={link.href}
+                      custom={index}
+                      variants={linkVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="hidden"
                     >
-                      {link.name}
-                    </Link>
-                  </motion.div>
-                ))}
+                      {children}
+                    </motion.div>
+                  )}
+                  linkClassName="text-white text-2xl font-medium hover:text-red-500 transition-colors py-2 block"
+                />
               </div>
             </div>
           </motion.div>
