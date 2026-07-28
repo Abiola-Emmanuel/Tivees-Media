@@ -1,14 +1,27 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic';
 
 import React, { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import axios from 'axios';
-import { MdClose, MdShare, MdPerson, MdMessage, MdVideocam, MdVideocamOff, MdVolumeOff, MdVolumeUp } from 'react-icons/md';
+import Hls from 'hls.js';
+import { MdClose, MdContentCut, MdShare, MdPerson, MdMessage, MdVideocam, MdVideocamOff, MdVolumeOff, MdVolumeUp } from 'react-icons/md';
 import AttendeesPanel from '@/components/AttendesPanel';
 import CommentsPanel from '@/components/CommentsPanel';
 import { IoIosRefresh } from 'react-icons/io';
+import { useClipRecorder } from '@/hooks/useClipRecorder';
+import toast, { Toaster } from 'react-hot-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -244,8 +257,10 @@ const WatchPartyPlayer = () => {
   const [knownPeerCount, setKnownPeerCount] = useState(0);
   const [remoteDisplayNames, setRemoteDisplayNames] = useState({});
   const [attendeeNames, setAttendeeNames] = useState({});
+  const [clipPreviewUrl, setClipPreviewUrl] = useState('');
+  const [showStopClipDialog, setShowStopClipDialog] = useState(false);
 
-  const iframeRef = useRef(null);
+  const movieVideoRef = useRef(null);
   const playerRef = useRef(null);
   const wsRef = useRef(null);
   const isSyncingRef = useRef(false);
@@ -297,6 +312,122 @@ const WatchPartyPlayer = () => {
   const processedAnswerSdpRef = useRef(new Map());
   const pendingIceCandidatesRef = useRef({});
   const watchPartyEndedPatchSentRef = useRef(false);
+
+  //clipping
+  const {
+    isRecording: isClipRecording,
+    secondsLeft: clipSecondsLeft,
+    clipUrl,
+    clipError,
+    clipWarning,
+    startClip,
+    stopClip,
+  } = useClipRecorder({
+    durationMs: 180000,
+    getAudioElement: () => movieVideoRef.current,
+  });
+
+  useEffect(() => {
+    if (!clipUrl) return;
+    setClipPreviewUrl(clipUrl);
+    toast.success('Your clip is ready');
+  }, [clipUrl]);
+
+  useEffect(() => {
+    if (!clipError) return;
+    toast.error(clipError);
+  }, [clipError]);
+
+  useEffect(() => {
+    if (!clipWarning) return;
+    toast(clipWarning, { duration: 5000 });
+  }, [clipWarning]);
+
+  const handleClipButtonClick = () => {
+    if (isClipRecording) {
+      setShowStopClipDialog(true);
+      return;
+    }
+    toast('Choose This Tab and turn on Share tab audio.', { duration: 4500 });
+    startClip();
+  };
+
+  const handleConfirmStopClip = () => {
+    stopClip();
+    setShowStopClipDialog(false);
+  };
+
+  const getCloudflareHlsUrl = (cloudflareId = '') => {
+    return `https://videodelivery.net/${cloudflareId}/manifest/video.m3u8`;
+  }
+
+  useEffect(() => {
+    // Video element only mounts after hydration + auth + required params.
+    // Running earlier leaves movieVideoRef null and never retries.
+    if (!isHydrated || !cfid || !partyId || !userId || isAuthenticated !== true || backendErrorMessage) {
+      return;
+    }
+
+    const video = movieVideoRef.current;
+    if (!video) {
+      return;
+    }
+
+    let hls;
+    let cancelled = false;
+    const hlsUrl = getCloudflareHlsUrl(cfid);
+
+    const handleLoadedMetadata = () => {
+      if (cancelled) return;
+      playerRef.current = video;
+      setPlayerControls(false);
+      setPlayerMuted(false);
+      setPlayerReady(true);
+      console.log('Player initialized');
+    };
+
+    const handleError = (event) => {
+      console.error('Video player error:', event);
+      setConnectionStatus('error');
+    };
+
+    playerRef.current = video;
+    video.crossOrigin = 'anonymous';
+    video.playsInline = true;
+    video.preload = 'metadata';
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('error', handleError);
+
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = hlsUrl;
+      video.load();
+    } else if (Hls.isSupported()) {
+      hls = new Hls();
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+        hls.loadSource(hlsUrl);
+      });
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data?.fatal) {
+          console.error('HLS playback failed:', data);
+          setConnectionStatus('error');
+        }
+      });
+    } else {
+      console.error('HLS playback is not supported in this browser');
+      setConnectionStatus('error');
+    }
+
+    return () => {
+      cancelled = true;
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('error', handleError);
+      hls?.destroy();
+      video.removeAttribute('src');
+      video.load();
+      setPlayerReady(false);
+    };
+  }, [cfid, partyId, userId, isHydrated, isAuthenticated, backendErrorMessage]);
 
   const getCurrentPositionSeconds = () => {
     return Number(playerRef.current?.currentTime || 0);
@@ -505,7 +636,7 @@ const WatchPartyPlayer = () => {
       setCameraError('');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
-        audio: false
+        audio: true
       });
       setLocalStream(stream);
       localStreamRef.current = stream;
@@ -949,70 +1080,6 @@ const WatchPartyPlayer = () => {
       isSyncingRef.current = false;
     }
   };
-
-  useEffect(() => {
-    if (!cfid) return;
-
-    let retryTimeout;
-    let retryCount = 0;
-    const maxRetries = 50;
-    let sdkScript;
-    let cancelled = false;
-
-    const initializePlayer = () => {
-      if (cancelled) return;
-
-      if (!iframeRef.current) {
-        retryCount++;
-
-        if (retryCount >= maxRetries) {
-          console.error('Iframe ref not available after maximum retries');
-          setConnectionStatus('error');
-          return;
-        }
-
-        retryTimeout = window.setTimeout(initializePlayer, 100);
-        return;
-      }
-
-      try {
-        iframeRef.current.src = `https://iframe.videodelivery.net/${cfid}?controls=false`;
-        playerRef.current = window.Stream(iframeRef.current);
-        setPlayerControls(false);
-        setPlayerMuted(false);
-        setPlayerReady(true);
-        console.log('Player initialized');
-      } catch (err) {
-        console.error('Error initializing player:', err);
-      }
-    };
-
-    if (window.Stream) {
-      initializePlayer();
-    } else {
-      sdkScript = document.createElement('script');
-      sdkScript.src = 'https://embed.videodelivery.net/embed/sdk.latest.js';
-      sdkScript.async = true;
-      sdkScript.onload = initializePlayer;
-      sdkScript.onerror = () => {
-        console.error('Failed to load Stream SDK');
-        setConnectionStatus('error');
-      };
-      document.body.appendChild(sdkScript);
-    }
-
-    return () => {
-      cancelled = true;
-
-      if (retryTimeout) {
-        window.clearTimeout(retryTimeout);
-      }
-
-      if (sdkScript && document.body.contains(sdkScript)) {
-        document.body.removeChild(sdkScript);
-      }
-    };
-  }, [cfid]);
 
   useEffect(() => {
     if (!partyId || !sessionId || !playerReady || !playerRef.current) return;
@@ -1625,6 +1692,37 @@ const WatchPartyPlayer = () => {
 
   return (
     <div className="relative w-full h-screen bg-black flex overflow-hidden font-sans text-white">
+      <Toaster
+        position="bottom-center"
+        gutter={10}
+        containerStyle={{ bottom: 28, zIndex: 60 }}
+        toastOptions={{
+          duration: 3500,
+          className: 'rounded-xl border border-white/10 text-sm font-medium shadow-lg',
+          style: {
+            background: 'rgba(18, 18, 18, 0.94)',
+            color: '#f4f4f5',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '12px',
+            padding: '12px 16px',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.45)',
+            backdropFilter: 'blur(10px)',
+            maxWidth: '340px',
+          },
+          success: {
+            iconTheme: {
+              primary: '#22c55e',
+              secondary: '#121212',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#121212',
+            },
+          },
+        }}
+      />
       <button
         onClick={() => router.back()}
         className="absolute top-6 left-6 z-20 cursor-pointer transition text-white hover:opacity-70"
@@ -1687,17 +1785,32 @@ const WatchPartyPlayer = () => {
         </div>
 
         <div className="absolute inset-0 flex items-center justify-center z-0">
-          <iframe
-            ref={iframeRef}
-            id="cf-player"
-            allowFullScreen
-            frameBorder="0"
-            allow="autoplay; encrypted-media; picture-in-picture"
-            className="absolute inset-0 w-full h-full"
+          <video
+            ref={movieVideoRef}
+            id="movie-player"
+            playsInline
+            className="absolute inset-0 w-full h-full object-contain"
           />
         </div>
 
         <div className="z-10 flex flex-col gap-6">
+          {clipPreviewUrl && (
+            <div className="flex flex-col gap-2 self-end">
+              <video
+                src={clipPreviewUrl}
+                controls
+                className="max-h-36 w-64 rounded-lg border border-white/15 bg-black object-contain"
+              />
+              <a
+                href={clipPreviewUrl}
+                download="watchparty-clip.webm"
+                className="rounded-lg bg-green-600 px-3 py-1.5 text-center text-xs font-semibold text-white hover:bg-green-700"
+              >
+                Download clip
+              </a>
+            </div>
+          )}
+
           {!isHost && showGuestControlNotice && (
             <div className="px-3 py-2 bg-blue-500/20 border border-blue-500/50 rounded-lg text-xs text-blue-200">
               Only host controls the video
@@ -1706,6 +1819,23 @@ const WatchPartyPlayer = () => {
 
           <div className="flex items-center gap-4">
             <div className="flex-1 flex flex-col items-end gap-5">
+              {isHost && (
+                <button
+                  type="button"
+                  onClick={handleClipButtonClick}
+                  className={`relative p-2 rounded-lg transition ${isClipRecording ? 'bg-red-500/30 text-red-200' : 'hover:bg-white/10'}`}
+                  title={isClipRecording ? `Recording… ${clipSecondsLeft}s left — click to stop` : 'Clip that!'}
+                  aria-label={isClipRecording ? 'Stop clip recording' : 'Start clip recording'}
+                >
+                  <MdContentCut size={22} />
+                  {isClipRecording && (
+                    <span className="absolute -top-1 -right-1 min-w-[1.25rem] bg-red-500 text-center text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white">
+                      {clipSecondsLeft}s
+                    </span>
+                  )}
+                </button>
+              )}
+
               <button
                 onClick={handleShareParty}
                 className="p-2 hover:bg-white/10 rounded-lg transition"
@@ -1875,7 +2005,28 @@ const WatchPartyPlayer = () => {
         </aside>
       )}
 
-
+      <AlertDialog open={showStopClipDialog} onOpenChange={setShowStopClipDialog}>
+        <AlertDialogContent className="border-white/10 bg-[#121212] text-white sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop clipping?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              Recording will end now and you&apos;ll get a clip of what&apos;s been captured so far
+              {clipSecondsLeft > 0 ? ` (${clipSecondsLeft}s remaining on the timer)` : ''}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/15 bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white">
+              Keep recording
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmStopClip}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Stop clip
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
 
 
@@ -1891,3 +2042,4 @@ export default function WatchPartyPage() {
     </Suspense>
   );
 }
+
