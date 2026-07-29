@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion'
 import CategoriesSection from '@/components/Categories';
 import Footer from '@/components/Footer';
@@ -19,23 +19,11 @@ import FreeTrial from '@/components/FreeTrial';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import HomeHeroCarousel from '@/components/Home-HeroCarousel';
+import { useRequireCurrentUser } from '@/hooks/useRequireCurrentUser';
 
 const Main = () => {
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(null);
-
-  useEffect(() => {
-    const authToken = localStorage.getItem('authToken');
-    const userString = localStorage.getItem('user');
-
-    if (!authToken || !userString) {
-      setIsAuthenticated(false);
-      router.push('/sign-in');
-      return;
-    }
-
-    setIsAuthenticated(true);
-  }, [router]);
+  const { isAuthenticated } = useRequireCurrentUser();
 
   const [billing, setBilling] = useState("monthly");
 
@@ -125,7 +113,7 @@ const Main = () => {
     }
   };
 
-  if (isAuthenticated === false) {
+  if (isAuthenticated !== true) {
     return (
       <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white gap-4">
         <h2 className="text-2xl font-bold">Redirecting</h2>

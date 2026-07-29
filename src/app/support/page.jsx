@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaUser, FaEnvelope, FaPhone, FaComment, FaCheckCircle } from 'react-icons/fa';
 import Navbar from "@/components/Navbar";
@@ -7,14 +7,13 @@ import Image from "next/image";
 import Accordion from '@/components/Accordion';
 import FreeTrial from '@/components/FreeTrial';
 import Footer from '@/components/Footer';
-import { useRouter } from 'next/navigation';
 import axios from "axios"
+import { useRequireCurrentUser } from '@/hooks/useRequireCurrentUser';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const Support = () => {
-  const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const { isAuthenticated } = useRequireCurrentUser();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -28,18 +27,6 @@ const Support = () => {
 
   const url = `${API_BASE_URL}/api/v1`;
 
-  useEffect(() => {
-    const authToken = localStorage.getItem('authToken');
-    const userString = localStorage.getItem('user');
-
-    if (!authToken || !userString) {
-      setIsAuthenticated(false);
-      router.push('/sign-in');
-      return;
-    }
-
-    setIsAuthenticated(true);
-  }, [router]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -83,7 +70,7 @@ const Support = () => {
     }
   };
 
-  if (isAuthenticated === false) {
+  if (isAuthenticated !== true) {
     return (
       <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white gap-4">
         <h2 className="text-2xl font-bold">Redirecting</h2>

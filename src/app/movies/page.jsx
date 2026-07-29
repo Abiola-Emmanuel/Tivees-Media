@@ -10,6 +10,7 @@ import MovieRow from '@/components/MovieRow'
 import { useRouter } from 'next/navigation'
 import { CiSearch } from 'react-icons/ci'
 import { IoClose } from 'react-icons/io5'
+import { useRequireCurrentUser } from '@/hooks/useRequireCurrentUser'
 
 const normalizeMovieTags = (payload = []) => {
   if (!Array.isArray(payload)) {
@@ -41,26 +42,18 @@ const Movies = () => {
   const [showResults, setShowResults] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(null)
+  const { isAuthenticated } = useRequireCurrentUser()
   const debounceTimerRef = useRef(null)
   const searchInputRef = useRef(null)
   const url = process.env.NEXT_PUBLIC_BACKEND_URL
   const router = useRouter()
 
-  useEffect(() => {
-    const authToken = localStorage.getItem('authToken')
-    const userString = localStorage.getItem('user')
 
-    if (!authToken || !userString) {
-      setIsAuthenticated(false)
-      router.push('/sign-in')
+  useEffect(() => {
+    if (isAuthenticated !== true) {
       return
     }
 
-    setIsAuthenticated(true)
-  }, [router]);
-
-  useEffect(() => {
     const fetchMoviesByTag = async () => {
       try {
         const authToken = localStorage.getItem('authToken')
@@ -103,7 +96,7 @@ const Movies = () => {
     }
 
     fetchMoviesByTag()
-  }, [url])
+  }, [isAuthenticated, url])
 
   useEffect(() => {
     if (isSearchOpen) {
@@ -182,7 +175,7 @@ const Movies = () => {
     })
   }
 
-  if (isAuthenticated === false) {
+  if (isAuthenticated !== true) {
     return (
       <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white gap-4">
         <h2 className="text-2xl font-bold">Redirecting</h2>

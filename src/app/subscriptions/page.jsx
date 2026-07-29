@@ -4,66 +4,30 @@ import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { useRouter } from 'next/navigation';
 import axios from "axios";
+import { useRequireCurrentUser } from '@/hooks/useRequireCurrentUser';
 const PayButton = dynamic(() => import("@/components/PaystackButton"), {
   ssr: false,
 });
 
 const Subscription = () => {
-  const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
+  const { isAuthenticated, currentUser, setCurrentUser } = useRequireCurrentUser();
   const [plans, setPlans] = useState([])
   const [plansLoading, setPlansLoading] = useState(true)
   const [plansError, setPlansError] = useState("")
 
   const url = process.env.NEXT_PUBLIC_BACKEND_URL
 
-  useEffect(() => {
-    const authToken = localStorage.getItem('authToken');
-    const userString = localStorage.getItem('user');
-
-    if (!authToken || !userString) {
-      setIsAuthenticated(false);
-      router.push('/sign-in');
-      return;
-    }
-
-    try {
-      setCurrentUser(JSON.parse(userString));
-    } catch (error) {
-      console.error("Unable to parse stored user:", error);
-    }
-
-    const fetchCurrentUser = async () => {
-      try {
-        const response = await axios.get(`${url}/api/v1/users/current-user`, {
-          headers: {
-            Authorization: `Bearer ${authToken}`
-          }
-        });
-
-        const updatedUser = response.data?.user;
-
-        if (updatedUser) {
-          localStorage.setItem("user", JSON.stringify(updatedUser));
-          setCurrentUser(updatedUser);
-        }
-      } catch (error) {
-        console.error("Unable to fetch current user:", error);
-      }
-    };
-
-    setIsAuthenticated(true);
-    fetchCurrentUser();
-  }, [router, url]);
 
   const [paymentStatus, setPaymentStatus] = useState("");
   const userSubscriptionStatus = currentUser?.subscriptionStatus || "";
   const hasActiveSubscription = userSubscriptionStatus.toLowerCase() === "active";
 
   useEffect(() => {
+    if (isAuthenticated !== true) {
+      return
+    }
+
     const fetchPlans = async () => {
       const authToken = localStorage.getItem('authToken')
       setPlansLoading(true)
@@ -87,9 +51,9 @@ const Subscription = () => {
     }
 
     fetchPlans()
-  }, [url])
+  }, [isAuthenticated, url])
 
-  if (isAuthenticated === false) {
+  if (isAuthenticated !== true) {
     return (
       <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white gap-4">
         <h2 className="text-2xl font-bold">Redirecting</h2>
