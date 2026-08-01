@@ -20,23 +20,6 @@ const getReadableErrorMessage = (error, fallbackMessage) => {
   return responseData?.message || responseData?.error || fallbackMessage
 }
 
-const getAuthHeaders = () => {
-  if (typeof window === 'undefined') {
-    return null
-  }
-
-  const authToken = window.localStorage.getItem('authToken')
-
-  if (!authToken) {
-    return null
-  }
-
-  return {
-    Authorization: `Bearer ${authToken}`,
-    'Content-Type': 'application/json',
-  }
-}
-
 const ForgotPasswordPage = () => {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
@@ -51,20 +34,14 @@ const ForgotPasswordPage = () => {
   const url = `${API_BASE_URL}/api/v1`
 
   const runResetRequest = async (endpoint, payload, fallbackMessage) => {
-    const headers = getAuthHeaders()
-
     setErrorMessage('')
     setSuccessMessage('')
-
-    if (!headers) {
-      setErrorMessage('Password reset requires a valid user session. Please sign in again before requesting a password reset.')
-      return null
-    }
-
     setIsLoading(true)
 
     try {
-      const response = await axios.post(`${url}${endpoint}`, payload, { headers })
+      const response = await axios.post(`${url}${endpoint}`, payload, {
+        headers: { 'Content-Type': 'application/json' },
+      })
       const message = response.data?.message || fallbackMessage
 
       if (response.data?.status !== 'SUCCESS') {
